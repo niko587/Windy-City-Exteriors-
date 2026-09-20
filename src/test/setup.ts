@@ -4,6 +4,7 @@ import { cleanup } from '@testing-library/react';
 
 afterEach(() => cleanup());
 
+// jsdom does not implement object URLs; the wizard only needs stable stand-ins.
 if (!('createObjectURL' in URL)) {
   let n = 0;
   Object.defineProperty(URL, 'createObjectURL', { value: () => `blob:test-${++n}`, writable: true });
@@ -13,10 +14,14 @@ if (!('createObjectURL' in URL)) {
 if (!window.matchMedia) {
   Object.defineProperty(window, 'matchMedia', {
     value: (query: string) => ({
-      matches: false, media: query,
-      addEventListener: () => undefined, removeEventListener: () => undefined,
-      addListener: () => undefined, removeListener: () => undefined,
-      dispatchEvent: () => false, onchange: null,
+      matches: false,
+      media: query,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+      addListener: () => undefined,
+      removeListener: () => undefined,
+      dispatchEvent: () => false,
+      onchange: null,
     }),
   });
 }

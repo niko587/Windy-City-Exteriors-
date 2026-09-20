@@ -1,0 +1,98 @@
+@import 'tailwindcss';
+
+/* Design tokens. Change the brand colors here and the whole site follows. */
+@theme {
+  --color-brand-50: #eef6ff;
+  --color-brand-100: #d9ebff;
+  --color-brand-200: #bcdcff;
+  --color-brand-300: #8ec6ff;
+  --color-brand-400: #59a5ff;
+  --color-brand-500: #3382fb;
+  --color-brand-600: #1d61f0;
+  --color-brand-700: #184cdc;
+  --color-brand-800: #1a3fb2;
+  --color-brand-900: #1b398c;
+  --color-brand-950: #142455;
+
+  --color-accent-50: #fff8ed;
+  --color-accent-100: #ffefd4;
+  --color-accent-200: #ffdaa8;
+  --color-accent-300: #ffbf70;
+  --color-accent-400: #ff9937;
+  --color-accent-500: #fe7d11;
+  --color-accent-600: #ef6107;
+  --color-accent-700: #c64808;
+  --color-accent-800: #9d390f;
+  --color-accent-900: #7e3110;
+  --color-accent-950: #441606;
+
+  --color-ink-50: #f6f7f9;
+  --color-ink-100: #eceef2;
+  --color-ink-200: #d4d9e3;
+  --color-ink-300: #aeb8ca;
+  --color-ink-400: #8291ac;
+  --color-ink-500: #637392;
+  --color-ink-600: #4e5c79;
+  --color-ink-700: #404b62;
+  --color-ink-800: #384053;
+  --color-ink-900: #323847;
+  --color-ink-950: #21252f;
+
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+    'Noto Sans', sans-serif;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: white;
+    color: var(--color-ink-900);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* A visible focus ring for keyboard users on every interactive element. */
+  :focus-visible {
+    outline: 3px solid var(--color-accent-500);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  /* Lets keyboard users skip the nav; visible only once focused. */
+  .skip-link {
+    position: absolute;
+    left: -9999px;
+    top: 0;
+    z-index: 100;
+  }
+
+  .skip-link:focus {
+    left: 1rem;
+    top: 1rem;
+    background: white;
+    color: var(--color-ink-900);
+    padding: 0.75rem 1rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 10px 30px rgb(0 0 0 / 0.2);
+  }
+}

@@ -1,0 +1,29 @@
+---
+import Icon from './Icon.astro';
+import type { IconName } from '~/data/site';
+
+/**
+ * Stands in for a real project photo. Every one of these should be replaced
+ * with an actual photo of the crew's own work before launch — see
+ * public/images/README.md. It is deliberately obvious rather than stock
+ * imagery, so nothing ships that implies work the business did not do.
+ */
+interface Props {
+  label: string;
+  icon?: IconName;
+  class?: string;
+}
+
+const { label, icon = 'roof', class: className = 'aspect-[4/3]' } = Astro.props;
+---
+
+<div
+  class:list={[
+    'flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-ink-300 bg-gradient-to-br from-ink-100 to-ink-200 text-ink-500',
+    className,
+  ]}
+>
+  <Icon name={icon} class="h-8 w-8" />
+  <p class="px-3 text-center text-xs font-semibold uppercase tracking-wider">{label}</p>
+  <p class="text-[0.65rem] text-ink-400">Photo placeholder</p>
+</div>

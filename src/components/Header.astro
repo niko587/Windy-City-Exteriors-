@@ -1,0 +1,126 @@
+---
+import { site, services } from '~/data/site';
+import Icon from './Icon.astro';
+
+const path = Astro.url.pathname.replace(/\/$/, '') || '/';
+
+const links = [
+  { href: '/', label: 'Home' },
+  { href: '/services', label: 'Services' },
+  { href: '/gallery', label: 'Our Work' },
+  { href: '/about', label: 'About' },
+  { href: '/contact', label: 'Contact' },
+];
+
+const isActive = (href: string) => (href === '/' ? path === '/' : path.startsWith(href));
+---
+
+<header class="sticky top-0 z-50 border-b border-ink-200 bg-white/95 backdrop-blur">
+  <!-- Phone bar: on a contractor site the phone number is the primary conversion. -->
+  <div class="bg-brand-900 text-white">
+    <div class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-x-6 gap-y-1 px-4 py-2 text-sm">
+      <p class="font-medium">{site.tagline}</p>
+      <a href={site.phoneHref} class="flex items-center gap-2 font-semibold hover:text-accent-300">
+        <Icon name="phone" class="h-4 w-4" />
+        {site.phone}
+      </a>
+    </div>
+  </div>
+
+  <nav class="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3" aria-label="Main">
+    <a href="/" class="flex items-center gap-3">
+      <span class="grid h-11 w-11 place-items-center rounded-lg bg-brand-700 text-white">
+        <Icon name="roof" class="h-6 w-6" />
+      </span>
+      <span class="leading-tight">
+        <span class="block text-lg font-bold tracking-tight text-ink-950">Windy City</span>
+        <span class="block text-xs font-semibold uppercase tracking-[0.18em] text-brand-700">Exteriors</span>
+      </span>
+    </a>
+
+    <ul class="hidden items-center gap-1 lg:flex">
+      {
+        links.map((link) => (
+          <li>
+            <a
+              href={link.href}
+              aria-current={isActive(link.href) ? 'page' : undefined}
+              class:list={[
+                'rounded-md px-3 py-2 text-sm font-semibold transition-colors',
+                isActive(link.href) ? 'bg-brand-50 text-brand-800' : 'text-ink-700 hover:bg-ink-50 hover:text-ink-950',
+              ]}
+            >
+              {link.label}
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+
+    <div class="flex items-center gap-2">
+      <a
+        href="/contact"
+        class="hidden rounded-lg bg-accent-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-accent-700 sm:inline-block"
+      >
+        Free Estimate
+      </a>
+      <button
+        type="button"
+        id="nav-toggle"
+        class="rounded-md p-2 text-ink-700 hover:bg-ink-100 lg:hidden"
+        aria-expanded="false"
+        aria-controls="mobile-nav"
+      >
+        <span class="sr-only">Open menu</span>
+        <Icon name="menu" class="h-6 w-6" />
+      </button>
+    </div>
+  </nav>
+
+  <div id="mobile-nav" class="hidden border-t border-ink-200 lg:hidden">
+    <ul class="mx-auto max-w-7xl px-4 py-3">
+      {
+        links.map((link) => (
+          <li>
+            <a
+              href={link.href}
+              aria-current={isActive(link.href) ? 'page' : undefined}
+              class:list={[
+                'block rounded-md px-3 py-2.5 font-semibold',
+                isActive(link.href) ? 'bg-brand-50 text-brand-800' : 'text-ink-800 hover:bg-ink-50',
+              ]}
+            >
+              {link.label}
+            </a>
+          </li>
+        ))
+      }
+      <li class="mt-2 border-t border-ink-200 pt-3">
+        <p class="px-3 pb-2 text-xs font-semibold uppercase tracking-wider text-ink-500">Services</p>
+        {
+          services.map((service) => (
+            <a href={`/services/${service.slug}`} class="block rounded-md px-3 py-2 text-sm text-ink-700 hover:bg-ink-50">
+              {service.name}
+            </a>
+          ))
+        }
+      </li>
+      <li class="mt-3">
+        <a href="/contact" class="block rounded-lg bg-accent-600 px-4 py-3 text-center font-bold text-white">
+          Get a Free Estimate
+        </a>
+      </li>
+    </ul>
+  </div>
+</header>
+
+<script>
+  const toggle = document.getElementById('nav-toggle');
+  const menu = document.getElementById('mobile-nav');
+
+  toggle?.addEventListener('click', () => {
+    const open = menu?.classList.toggle('hidden') === false;
+    toggle.setAttribute('aria-expanded', String(open));
+    toggle.querySelector('span')!.textContent = open ? 'Close menu' : 'Open menu';
+  });
+</script>

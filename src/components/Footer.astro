@@ -1,0 +1,92 @@
+---
+import { site, services, serviceAreas } from '~/data/site';
+import Icon from './Icon.astro';
+
+const year = new Date().getFullYear();
+const socials = Object.entries(site.social).filter(([, url]) => url);
+---
+
+<footer class="bg-ink-950 text-ink-300">
+  <div class="mx-auto grid max-w-7xl gap-10 px-4 py-14 sm:grid-cols-2 lg:grid-cols-4">
+    <div>
+      <div class="flex items-center gap-3 text-white">
+        <span class="grid h-10 w-10 place-items-center rounded-lg bg-brand-700">
+          <Icon name="roof" class="h-5 w-5" />
+        </span>
+        <span class="text-lg font-bold">{site.name}</span>
+      </div>
+      <p class="mt-4 text-sm leading-relaxed">{site.description}</p>
+      {
+        socials.length > 0 && (
+          <ul class="mt-4 flex gap-3">
+            {socials.map(([network, url]) => (
+              <li>
+                <a href={url} class="text-sm font-semibold capitalize text-ink-200 underline hover:text-white">
+                  {network}
+                </a>
+              </li>
+            ))}
+          </ul>
+        )
+      }
+    </div>
+
+    <div>
+      <h2 class="text-sm font-bold uppercase tracking-wider text-white">Services</h2>
+      <ul class="mt-4 space-y-2 text-sm">
+        {
+          services.map((service) => (
+            <li>
+              <a href={`/services/${service.slug}`} class="hover:text-white hover:underline">
+                {service.name}
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+
+    <div>
+      <h2 class="text-sm font-bold uppercase tracking-wider text-white">Service Area</h2>
+      <p class="mt-4 text-sm leading-relaxed">{serviceAreas.join(' · ')}</p>
+    </div>
+
+    <div>
+      <h2 class="text-sm font-bold uppercase tracking-wider text-white">Contact</h2>
+      <ul class="mt-4 space-y-3 text-sm">
+        <li>
+          <a href={site.phoneHref} class="flex items-start gap-2.5 font-semibold text-white hover:text-accent-300">
+            <Icon name="phone" class="mt-0.5 h-4 w-4 shrink-0" />
+            {site.phone}
+          </a>
+        </li>
+        <li>
+          <a href={`mailto:${site.email}`} class="flex items-start gap-2.5 hover:text-white">
+            <Icon name="mail" class="mt-0.5 h-4 w-4 shrink-0" />
+            {site.email}
+          </a>
+        </li>
+        <li class="flex items-start gap-2.5">
+          <Icon name="pin" class="mt-0.5 h-4 w-4 shrink-0" />
+          <span>
+            {site.address.street}<br />
+            {site.address.city}, {site.address.state} {site.address.zip}
+          </span>
+        </li>
+        <li class="flex items-start gap-2.5">
+          <Icon name="clock" class="mt-0.5 h-4 w-4 shrink-0" />
+          <span>
+            {site.hours.map((entry) => <span class="block">{entry.days}: {entry.time}</span>)}
+          </span>
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="border-t border-ink-800">
+    <div class="mx-auto flex max-w-7xl flex-col gap-2 px-4 py-6 text-xs sm:flex-row sm:items-center sm:justify-between">
+      <p>&copy; {year} {site.name}. All rights reserved.</p>
+      <p>{site.license} · Licensed &amp; insured</p>
+    </div>
+  </div>
+</footer>

@@ -1,0 +1,68 @@
+---
+import BaseLayout from '~/layouts/BaseLayout.astro';
+import CallToAction from '~/components/CallToAction.astro';
+import PhotoPlaceholder from '~/components/PhotoPlaceholder.astro';
+import { services } from '~/data/site';
+
+/**
+ * TODO: replace this placeholder grid with real project photos.
+ *
+ * Drop the images into public/images/projects/ and swap each
+ * <PhotoPlaceholder /> for:
+ *   <img src="/images/projects/your-photo.jpg" alt="..." class="..." />
+ * See public/images/README.md.
+ */
+const projects = [
+  { label: 'Full roof replacement', neighborhood: 'Logan Square', icon: 'roof' },
+  { label: 'Fiber cement siding', neighborhood: 'Oak Park', icon: 'siding' },
+  { label: 'Seamless gutter install', neighborhood: 'Albany Park', icon: 'gutter' },
+  { label: 'Window replacement', neighborhood: 'Evanston', icon: 'window' },
+  { label: 'Hail damage repair', neighborhood: 'Schaumburg', icon: 'storm' },
+  { label: 'Tuckpointing', neighborhood: 'Pilsen', icon: 'masonry' },
+  { label: 'Flat roof, two-flat', neighborhood: 'Avondale', icon: 'roof' },
+  { label: 'Soffit and fascia', neighborhood: 'Berwyn', icon: 'siding' },
+  { label: 'Chimney rebuild', neighborhood: 'Rogers Park', icon: 'masonry' },
+] as const;
+
+const serviceNames = services.map((service) => service.name);
+---
+
+<BaseLayout
+  title="Our Work"
+  description="Recent roofing, siding, gutter and masonry projects across Chicago and the suburbs."
+>
+  <section class="bg-brand-900 py-16 text-white">
+    <div class="mx-auto max-w-7xl px-4">
+      <h1 class="text-4xl font-bold tracking-tight sm:text-5xl">Our work</h1>
+      <p class="mt-4 max-w-2xl text-lg text-brand-100">
+        Recent projects across the city and the suburbs. {serviceNames.join(', ')}.
+      </p>
+    </div>
+  </section>
+
+  <section class="bg-white py-16">
+    <div class="mx-auto max-w-7xl px-4">
+      <div class="rounded-xl border border-accent-200 bg-accent-50 p-4 text-sm text-accent-900">
+        <strong class="font-bold">Placeholder gallery.</strong> These tiles stand in for real photos. Replace them
+        with pictures of your own completed jobs before the site goes live — see
+        <code class="rounded bg-white px-1.5 py-0.5">public/images/README.md</code>.
+      </div>
+
+      <div class="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        {
+          projects.map((project) => (
+            <figure>
+              <PhotoPlaceholder label={project.label} icon={project.icon} />
+              <figcaption class="mt-3">
+                <span class="block font-bold text-ink-950">{project.label}</span>
+                <span class="block text-sm text-ink-500">{project.neighborhood}</span>
+              </figcaption>
+            </figure>
+          ))
+        }
+      </div>
+    </div>
+  </section>
+
+  <CallToAction heading="Want your project on this page?" />
+</BaseLayout>

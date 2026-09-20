@@ -1,0 +1,198 @@
+---
+import BaseLayout from '~/layouts/BaseLayout.astro';
+import ServiceCard from '~/components/ServiceCard.astro';
+import PhotoPlaceholder from '~/components/PhotoPlaceholder.astro';
+import CallToAction from '~/components/CallToAction.astro';
+import Icon from '~/components/Icon.astro';
+import { site, services, serviceAreas, testimonials, faqs } from '~/data/site';
+
+const promises = [
+  { title: 'Licensed and insured', body: 'Liability and workers compensation coverage on every job, with certificates available on request.' },
+  { title: 'Free written estimates', body: 'We come out, look at the actual work, and put a real price in writing. No cost and no obligation.' },
+  { title: 'Chicago crews', body: 'We work this metro area year round and we know what the winters here do to a building.' },
+  { title: 'Honest scope', body: 'If a repair will hold, we will tell you that instead of quoting a full replacement.' },
+];
+
+const steps = [
+  { step: '1', title: 'Call or send the form', body: 'Tell us roughly what is going on. It takes a couple of minutes.' },
+  { step: '2', title: 'We come look at it', body: 'We inspect the work in person, take photos, and explain what we find.' },
+  { step: '3', title: 'You get it in writing', body: 'A clear written estimate with the scope spelled out, so you can compare it against anyone else.' },
+  { step: '4', title: 'We do the work', body: 'Scheduled around the weather, cleaned up after, and warrantied when we are done.' },
+];
+---
+
+<BaseLayout title={site.name} description={site.description}>
+  <!-- Hero -->
+  <section class="relative overflow-hidden bg-ink-950">
+    <div
+      class="absolute inset-0 bg-gradient-to-br from-brand-900 via-ink-950 to-ink-900"
+      aria-hidden="true"
+    >
+    </div>
+    <div class="relative mx-auto grid max-w-7xl items-center gap-12 px-4 py-20 lg:grid-cols-2 lg:py-28">
+      <div>
+        <p class="inline-flex items-center gap-2 rounded-full bg-white/10 px-3.5 py-1.5 text-sm font-semibold text-accent-300">
+          <Icon name="pin" class="h-4 w-4" />
+          Serving Chicago and the suburbs
+        </p>
+        <h1 class="mt-5 text-4xl font-bold leading-[1.1] tracking-tight text-white sm:text-5xl lg:text-6xl">
+          Roofing, siding and gutters built for Chicago weather.
+        </h1>
+        <p class="mt-5 max-w-xl text-lg leading-relaxed text-ink-200">
+          Freeze-thaw winters, lake wind and hail are hard on a building. We repair and replace the parts that
+          take the beating, and we tell you straight whether you need a repair or a replacement.
+        </p>
+        <div class="mt-8 flex flex-col gap-3 sm:flex-row">
+          <a
+            href="/contact"
+            class="inline-flex items-center justify-center gap-2 rounded-lg bg-accent-500 px-7 py-4 font-bold text-white shadow-lg transition-colors hover:bg-accent-600"
+          >
+            Get a Free Estimate
+            <Icon name="arrow" class="h-5 w-5" />
+          </a>
+          <a
+            href={site.phoneHref}
+            class="inline-flex items-center justify-center gap-2 rounded-lg border-2 border-white/30 px-7 py-4 font-bold text-white transition-colors hover:bg-white/10"
+          >
+            <Icon name="phone" class="h-5 w-5" />
+            {site.phone}
+          </a>
+        </div>
+        <p class="mt-6 text-sm text-ink-300">{site.license} · Licensed &amp; insured · Free estimates</p>
+      </div>
+
+      <div class="grid grid-cols-2 gap-4">
+        <PhotoPlaceholder label="Completed roof" icon="roof" class="aspect-[4/5]" />
+        <div class="grid gap-4">
+          <PhotoPlaceholder label="Siding job" icon="siding" class="aspect-square" />
+          <PhotoPlaceholder label="Gutter install" icon="gutter" class="aspect-square" />
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Trust strip -->
+  <section class="border-b border-ink-200 bg-white">
+    <div class="mx-auto grid max-w-7xl gap-6 px-4 py-10 sm:grid-cols-2 lg:grid-cols-4">
+      {
+        promises.map((promise) => (
+          <div class="flex gap-3">
+            <span class="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-brand-700 text-white">
+              <Icon name="check" class="h-3.5 w-3.5" />
+            </span>
+            <div>
+              <h2 class="font-bold text-ink-950">{promise.title}</h2>
+              <p class="mt-1 text-sm leading-relaxed text-ink-600">{promise.body}</p>
+            </div>
+          </div>
+        ))
+      }
+    </div>
+  </section>
+
+  <!-- Services -->
+  <section class="bg-ink-50 py-20">
+    <div class="mx-auto max-w-7xl px-4">
+      <div class="max-w-2xl">
+        <h2 class="text-3xl font-bold tracking-tight text-ink-950 sm:text-4xl">What we do</h2>
+        <p class="mt-4 text-lg text-ink-600">
+          Everything on the outside of the building, from the ridge down to the downspout.
+        </p>
+      </div>
+      <div class="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        {services.map((service) => <ServiceCard service={service} />)}
+      </div>
+    </div>
+  </section>
+
+  <!-- Process -->
+  <section class="bg-white py-20">
+    <div class="mx-auto max-w-7xl px-4">
+      <div class="max-w-2xl">
+        <h2 class="text-3xl font-bold tracking-tight text-ink-950 sm:text-4xl">How it works</h2>
+        <p class="mt-4 text-lg text-ink-600">Four steps, no pressure, and a real price in writing before anything starts.</p>
+      </div>
+      <ol class="mt-10 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
+        {
+          steps.map((item) => (
+            <li>
+              <span class="grid h-11 w-11 place-items-center rounded-xl bg-accent-500 text-lg font-bold text-white">
+                {item.step}
+              </span>
+              <h3 class="mt-4 text-lg font-bold text-ink-950">{item.title}</h3>
+              <p class="mt-2 text-sm leading-relaxed text-ink-600">{item.body}</p>
+            </li>
+          ))
+        }
+      </ol>
+    </div>
+  </section>
+
+  <!-- Testimonials -->
+  <section class="bg-ink-50 py-20">
+    <div class="mx-auto max-w-7xl px-4">
+      <h2 class="text-3xl font-bold tracking-tight text-ink-950 sm:text-4xl">What customers say</h2>
+      <div class="mt-10 grid gap-6 lg:grid-cols-3">
+        {
+          testimonials.map((testimonial) => (
+            <figure class="flex flex-col rounded-2xl border border-ink-200 bg-white p-6 shadow-sm">
+              <blockquote class="flex-1 text-ink-700">
+                <p>&ldquo;{testimonial.quote}&rdquo;</p>
+              </blockquote>
+              <figcaption class="mt-5 border-t border-ink-200 pt-4">
+                <span class="block font-bold text-ink-950">{testimonial.name}</span>
+                <span class="block text-sm text-ink-500">{testimonial.location}</span>
+              </figcaption>
+            </figure>
+          ))
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- Service area -->
+  <section class="bg-white py-20">
+    <div class="mx-auto grid max-w-7xl gap-10 px-4 lg:grid-cols-2 lg:items-center">
+      <div>
+        <h2 class="text-3xl font-bold tracking-tight text-ink-950 sm:text-4xl">Where we work</h2>
+        <p class="mt-4 text-lg leading-relaxed text-ink-600">
+          We cover Chicago and the surrounding suburbs. If you are not sure whether your address is in range,
+          call and ask — it is a short conversation.
+        </p>
+        <a href={site.phoneHref} class="mt-6 inline-flex items-center gap-2 font-bold text-brand-700 hover:text-brand-800">
+          <Icon name="phone" class="h-5 w-5" />
+          {site.phone}
+        </a>
+      </div>
+      <ul class="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3">
+        {
+          serviceAreas.map((area) => (
+            <li class="flex items-center gap-2 text-ink-700">
+              <Icon name="check" class="h-4 w-4 shrink-0 text-brand-600" />
+              {area}
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section class="bg-ink-50 py-20">
+    <div class="mx-auto max-w-7xl px-4">
+      <h2 class="text-3xl font-bold tracking-tight text-ink-950 sm:text-4xl">Common questions</h2>
+      <dl class="mt-10 max-w-3xl divide-y divide-ink-200">
+        {
+          faqs.map((faq) => (
+            <div class="py-5">
+              <dt class="font-bold text-ink-950">{faq.question}</dt>
+              <dd class="mt-2 leading-relaxed text-ink-600">{faq.answer}</dd>
+            </div>
+          ))
+        }
+      </dl>
+    </div>
+  </section>
+
+  <CallToAction />
+</BaseLayout>

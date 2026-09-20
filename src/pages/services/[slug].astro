@@ -1,0 +1,106 @@
+---
+import type { GetStaticPaths } from 'astro';
+import BaseLayout from '~/layouts/BaseLayout.astro';
+import QuoteForm from '~/components/QuoteForm.astro';
+import PhotoPlaceholder from '~/components/PhotoPlaceholder.astro';
+import Icon from '~/components/Icon.astro';
+import { services, serviceAreas } from '~/data/site';
+
+export const getStaticPaths = (() =>
+  services.map((service) => ({
+    params: { slug: service.slug },
+    props: { service },
+  }))) satisfies GetStaticPaths;
+
+const { service } = Astro.props;
+const others = services.filter((entry) => entry.slug !== service.slug);
+---
+
+<BaseLayout title={service.name} description={service.summary}>
+  <section class="bg-brand-900 py-16 text-white">
+    <div class="mx-auto max-w-7xl px-4">
+      <nav aria-label="Breadcrumb" class="text-sm text-brand-200">
+        <a href="/services" class="hover:text-white hover:underline">Services</a>
+        <span class="px-2" aria-hidden="true">/</span>
+        <span class="text-white">{service.name}</span>
+      </nav>
+      <div class="mt-4 flex items-start gap-4">
+        <span class="grid h-14 w-14 shrink-0 place-items-center rounded-xl bg-white/10">
+          <Icon name={service.icon} class="h-7 w-7" />
+        </span>
+        <div>
+          <h1 class="text-4xl font-bold tracking-tight sm:text-5xl">{service.name}</h1>
+          <p class="mt-3 max-w-2xl text-lg text-brand-100">{service.summary}</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="bg-white py-16">
+    <div class="mx-auto grid max-w-7xl gap-12 px-4 lg:grid-cols-[1.4fr_1fr]">
+      <div>
+        <p class="text-lg leading-relaxed text-ink-700">{service.intro}</p>
+
+        <h2 class="mt-10 text-2xl font-bold text-ink-950">What the job includes</h2>
+        <ul class="mt-5 grid gap-3 sm:grid-cols-2">
+          {
+            service.includes.map((item) => (
+              <li class="flex items-start gap-2.5 text-ink-700">
+                <span class="mt-1 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-brand-100 text-brand-700">
+                  <Icon name="check" class="h-3 w-3" />
+                </span>
+                {item}
+              </li>
+            ))
+          }
+        </ul>
+
+        <aside class="mt-10 rounded-2xl border-l-4 border-accent-500 bg-accent-50 p-6">
+          <h2 class="font-bold text-ink-950">Worth knowing in Chicago</h2>
+          <p class="mt-2 leading-relaxed text-ink-700">{service.chicagoNote}</p>
+        </aside>
+
+        <div class="mt-10 grid gap-4 sm:grid-cols-3">
+          <PhotoPlaceholder label={`${service.name} project`} icon={service.icon} />
+          <PhotoPlaceholder label={`${service.name} project`} icon={service.icon} />
+          <PhotoPlaceholder label={`${service.name} project`} icon={service.icon} />
+        </div>
+
+        <p class="mt-6 text-sm text-ink-600">
+          We work across {serviceAreas.slice(0, 5).join(', ')} and the rest of the Chicago metro area.
+        </p>
+      </div>
+
+      <div>
+        <div class="lg:sticky lg:top-32">
+          <h2 class="text-2xl font-bold text-ink-950">Get a free estimate</h2>
+          <p class="mt-2 text-ink-600">Tell us about the job and we will come take a look.</p>
+          <div class="mt-5">
+            <QuoteForm />
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="border-t border-ink-200 bg-ink-50 py-16">
+    <div class="mx-auto max-w-7xl px-4">
+      <h2 class="text-2xl font-bold text-ink-950">Other services</h2>
+      <ul class="mt-6 flex flex-wrap gap-3">
+        {
+          others.map((entry) => (
+            <li>
+              <a
+                href={`/services/${entry.slug}`}
+                class="inline-flex items-center gap-2 rounded-lg border border-ink-200 bg-white px-4 py-2.5 font-semibold text-ink-800 shadow-sm transition-colors hover:border-brand-300 hover:text-brand-700"
+              >
+                <Icon name={entry.icon} class="h-5 w-5 text-brand-600" />
+                {entry.name}
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  </section>
+</BaseLayout>

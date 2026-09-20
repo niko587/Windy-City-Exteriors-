@@ -1,0 +1,79 @@
+---
+import BaseLayout from '~/layouts/BaseLayout.astro';
+import QuoteForm from '~/components/QuoteForm.astro';
+import Icon from '~/components/Icon.astro';
+import { site, serviceAreas } from '~/data/site';
+---
+
+<BaseLayout
+  title="Free Estimate"
+  description="Request a free, no-obligation estimate from Windy City Exteriors, or call us directly."
+>
+  <section class="bg-brand-900 py-16 text-white">
+    <div class="mx-auto max-w-7xl px-4">
+      <h1 class="text-4xl font-bold tracking-tight sm:text-5xl">Get a free estimate</h1>
+      <p class="mt-4 max-w-2xl text-lg text-brand-100">
+        Send the form and we will get back to you within one business day. If it is urgent — an active leak or
+        storm damage — call instead and we will get someone out sooner.
+      </p>
+    </div>
+  </section>
+
+  <section class="bg-white py-16">
+    <div class="mx-auto grid max-w-7xl gap-12 px-4 lg:grid-cols-[1.3fr_1fr]">
+      <div>
+        <h2 class="text-2xl font-bold text-ink-950">Tell us about the job</h2>
+        <p class="mt-2 text-ink-600">The more you can tell us, the more useful the first visit is.</p>
+        <div class="mt-6">
+          <QuoteForm />
+        </div>
+      </div>
+
+      <div class="space-y-8">
+        <div class="rounded-2xl border border-ink-200 bg-ink-50 p-6">
+          <h2 class="text-lg font-bold text-ink-950">Call or email</h2>
+          <ul class="mt-4 space-y-4">
+            <li>
+              <a href={site.phoneHref} class="flex items-start gap-3 text-lg font-bold text-brand-700 hover:text-brand-800">
+                <Icon name="phone" class="mt-1 h-5 w-5 shrink-0" />
+                {site.phone}
+              </a>
+            </li>
+            <li>
+              <a href={`mailto:${site.email}`} class="flex items-start gap-3 text-ink-700 hover:text-brand-700">
+                <Icon name="mail" class="mt-0.5 h-5 w-5 shrink-0" />
+                {site.email}
+              </a>
+            </li>
+            <li class="flex items-start gap-3 text-ink-700">
+              <Icon name="pin" class="mt-0.5 h-5 w-5 shrink-0" />
+              <span>
+                {site.address.street}<br />
+                {site.address.city}, {site.address.state} {site.address.zip}
+              </span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="rounded-2xl border border-ink-200 bg-ink-50 p-6">
+          <h2 class="text-lg font-bold text-ink-950">Hours</h2>
+          <dl class="mt-4 space-y-2 text-sm">
+            {
+              site.hours.map((entry) => (
+                <div class="flex justify-between gap-4">
+                  <dt class="text-ink-600">{entry.days}</dt>
+                  <dd class="font-semibold text-ink-900">{entry.time}</dd>
+                </div>
+              ))
+            }
+          </dl>
+        </div>
+
+        <div class="rounded-2xl border border-ink-200 bg-ink-50 p-6">
+          <h2 class="text-lg font-bold text-ink-950">Service area</h2>
+          <p class="mt-3 text-sm leading-relaxed text-ink-600">{serviceAreas.join(' · ')}</p>
+        </div>
+      </div>
+    </div>
+  </section>
+</BaseLayout>

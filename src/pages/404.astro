@@ -1,0 +1,25 @@
+---
+import BaseLayout from '~/layouts/BaseLayout.astro';
+import Icon from '~/components/Icon.astro';
+import { site } from '~/data/site';
+---
+
+<BaseLayout title="Page not found" indexable={false}>
+  <section class="mx-auto max-w-2xl px-4 py-28 text-center">
+    <p class="text-sm font-bold uppercase tracking-[0.2em] text-brand-700">404</p>
+    <h1 class="mt-3 text-4xl font-bold tracking-tight text-ink-950">We could not find that page</h1>
+    <p class="mt-4 text-lg text-ink-600">
+      It may have moved. Try the services list, or just call us and we will point you the right way.
+    </p>
+    <div class="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
+      <a href="/" class="rounded-lg bg-brand-700 px-6 py-3 font-bold text-white hover:bg-brand-800">Back to home</a>
+      <a
+        href={site.phoneHref}
+        class="inline-flex items-center justify-center gap-2 rounded-lg border-2 border-ink-300 px-6 py-3 font-bold text-ink-800 hover:bg-ink-50"
+      >
+        <Icon name="phone" class="h-5 w-5" />
+        {site.phone}
+      </a>
+    </div>
+  </section>
+</BaseLayout>

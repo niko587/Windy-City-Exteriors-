@@ -1,0 +1,89 @@
+---
+import BaseLayout from '~/layouts/BaseLayout.astro';
+import CallToAction from '~/components/CallToAction.astro';
+import PhotoPlaceholder from '~/components/PhotoPlaceholder.astro';
+import Icon from '~/components/Icon.astro';
+import { site } from '~/data/site';
+
+const values = [
+  {
+    title: 'We tell you if it is a repair',
+    body: 'Plenty of roofs that get quoted for full replacement have years left in them. If a repair will hold, that is what we will quote, and we will explain how we got there.',
+  },
+  {
+    title: 'The estimate is the price',
+    body: 'The number in the written estimate is the number you pay, unless we find something genuinely hidden. If that happens, we stop and talk to you before doing any extra work.',
+  },
+  {
+    title: 'We clean up',
+    body: 'Nails get magnet-swept out of the lawn, debris leaves with us, and the property looks the way it did before we showed up.',
+  },
+  {
+    title: 'We work in the weather we live in',
+    body: 'Everything we install is chosen for freeze-thaw cycles, lake wind and hail, because that is what it is going to face here.',
+  },
+];
+---
+
+<BaseLayout
+  title="About"
+  description="Windy City Exteriors is a local exteriors contractor serving Chicago and the surrounding suburbs."
+>
+  <section class="bg-brand-900 py-16 text-white">
+    <div class="mx-auto max-w-7xl px-4">
+      <h1 class="text-4xl font-bold tracking-tight sm:text-5xl">About {site.name}</h1>
+      <p class="mt-4 max-w-2xl text-lg text-brand-100">
+        A local exteriors contractor working across Chicago and the surrounding suburbs.
+      </p>
+    </div>
+  </section>
+
+  <section class="bg-white py-16">
+    <div class="mx-auto grid max-w-7xl gap-12 px-4 lg:grid-cols-2 lg:items-center">
+      <div class="space-y-4 text-lg leading-relaxed text-ink-700">
+        <!-- TODO: replace with the real company story: when it started, who runs
+             it, how many crews, anything that makes it specific. -->
+        <p>
+          We work on the outside of buildings: roofs, siding, gutters, windows and masonry. Most of what we do
+          is in Chicago and the inner suburbs, on the kind of housing stock this city actually has — brick
+          two-flats, bungalows, frame houses and small commercial buildings.
+        </p>
+        <p>
+          Exteriors work has a reputation problem, and it is mostly earned. After a storm the neighborhood fills
+          up with crews who quote a full replacement on everything, take a deposit, and are hard to reach
+          afterward. We try to be the opposite of that: look at the work properly, put the scope in writing, and
+          be reachable when something needs following up.
+        </p>
+        <p>
+          We are licensed and insured, we carry workers compensation, and we can send the certificates before
+          work starts if you or your building association need them on file.
+        </p>
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <PhotoPlaceholder label="Crew at work" icon="roof" class="aspect-[4/5]" />
+        <PhotoPlaceholder label="Finished job" icon="siding" class="mt-8 aspect-[4/5]" />
+      </div>
+    </div>
+  </section>
+
+  <section class="bg-ink-50 py-16">
+    <div class="mx-auto max-w-7xl px-4">
+      <h2 class="text-3xl font-bold tracking-tight text-ink-950">How we work</h2>
+      <div class="mt-10 grid gap-6 sm:grid-cols-2">
+        {
+          values.map((value) => (
+            <div class="rounded-2xl border border-ink-200 bg-white p-6 shadow-sm">
+              <span class="grid h-10 w-10 place-items-center rounded-lg bg-brand-50 text-brand-700">
+                <Icon name="check" class="h-5 w-5" />
+              </span>
+              <h3 class="mt-4 text-lg font-bold text-ink-950">{value.title}</h3>
+              <p class="mt-2 leading-relaxed text-ink-600">{value.body}</p>
+            </div>
+          ))
+        }
+      </div>
+    </div>
+  </section>
+
+  <CallToAction heading="Want us to come take a look?" />
+</BaseLayout>

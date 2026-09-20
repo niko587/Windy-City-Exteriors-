@@ -6,7 +6,9 @@ export default defineConfig({
   plugins: [react()],
   server: { port: 5173, host: '127.0.0.1' },
   preview: { port: 4173, host: '127.0.0.1' },
-  build: { chunkSizeWarningLimit: 1200 },
+  build: {
+    chunkSizeWarningLimit: 1200,
+  },
   test: {
     environment: 'jsdom',
     globals: true,

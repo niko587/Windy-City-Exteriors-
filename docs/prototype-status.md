@@ -171,18 +171,53 @@ it, so a refresh or a shared link to `/estimate` lands on the right page.
 - Quality drops automatically — pixel ratio first, then shadow map size — if
   frame times slip. On software rendering (a CI container, or a machine with no
   GPU) it will still be slow.
-- The planting and site furniture are stylised low-polygon forms. They read as
-  landscape at the framings used, but they are not the level of the building
-  itself. The treeline on the horizon is deliberately coarse: it sits a hundred
-  and twenty metres out and well inside the fog, and exists to stop the lawn
-  meeting the sky along a ruled line. Looked at directly it is still a cluster
-  of lobes, not a tree.
-- The window reflection is analytic — a procedural sky, not the scene. It
-  knows where the sun and the horizon are, and it does not know that there is
-  a tree to the left of the house.
+- The planting is built from alpha-cut leaf cards scattered on small spheres,
+  not from displaced solids. It reads as planting at the framings used and it
+  casts a shadow with holes in it, but each card is drawn from one procedural
+  leaf atlas, so a shrub at two metres is a mass of leaves rather than a
+  species. The treeline a hundred and twenty metres out is the same cards at a
+  third the density, and exists to stop the lawn meeting the sky along a ruled
+  line rather than to be looked at.
+- The window reflection is analytic. It samples the same sky function that
+  draws the dome and that the environment map is prefiltered from, so the
+  cloud in the glass is the cloud behind the house and the light on the
+  siding comes from the sky above it — but it is still a function, not the
+  scene. It knows where the sun and the horizon are, and it does not know
+  that there is a tree to the left of the house.
 - The wall assembly is one bay of a 2x6 wall as built here. It is a correct
   drawing of an ordinary wall, not a specification of any particular job.
 - The house is an archetype, not any real customer's property.
+
+## The rendering pass
+
+The verdict on the phase-two build was that it looked like a cartoon. That was
+a fair reading and it was not about any one screen: the frame had no ambient
+occlusion, no post-processing of any kind, foliage made of solid lobes, a flat
+three-light rig and a studio gradient standing in for a sky. Four things
+changed.
+
+- **A post chain** (`src/property/post.ts`). The scene renders to a half-float
+  target with a depth texture attached. From depth alone it reconstructs view
+  positions and normals and computes screen-space ambient occlusion at half
+  resolution, then upsamples it with a bilateral filter that will not bleed
+  across a depth edge. Bloom is taken from mip four of the colour target.
+  The composite applies the occlusion with a cool tint, adds the bloom, tone
+  maps with ACES, lifts the shadows toward the sky colour, and finishes with a
+  cosine-fourth vignette and luma-scaled grain. Tone mapping is off in the
+  renderer, so the occlusion and the bloom both work on linear light.
+- **A real sky.** One GLSL function returns the radiance looking in any
+  direction: a Rayleigh-shaped gradient with forward scatter on the sun's
+  side, a cumulus deck projected onto a plane overhead, a haze band at the
+  horizon, the lot below it, and the sun as a disc ninety times brighter than
+  the sky around it. The dome behind the house, the environment map the house
+  is lit by, and the reflection in every pane are all that same function, so
+  they cannot drift apart. The fog was re-matched to it; it was a warm cream
+  left over from the studio backdrop, and against a real sky it laid a beige
+  wash over the far lawn.
+- **Planting rebuilt from cards.** See the note in the limitations above.
+- **A light rig that is not three lamps.** VSM shadows with a real penumbra, a
+  hemisphere light carrying sky above and warm bounce below, and a key warm
+  enough to read as sun rather than as a lamp.
 
 ## Where the next visual pass should go
 
@@ -191,7 +226,10 @@ it, so a refresh or a shared link to `/estimate` lands on the right page.
 2. The gutters still reads as a gable rather than as a gutter run. The camera
    is right for the live view; the captured tile wants its own composition.
 3. Variation between the four foreground trees, which currently share one
-   canopy recipe.
-4. Ground-floor glazing. It reflects the ground rather than the sky, which is
-   what glass does when you look down at it, but it is the darkest thing on
-   the elevation and a lower hero camera would let it catch more sky.
+   canopy recipe, and more than one leaf shape in the atlas.
+4. Lawn wear where the grass meets the drive and the walk, and a broken edge
+   rather than a ruled one. Both need the ground mesh to carry a "metres from
+   the nearest paving" channel; a material cannot work it out from one
+   fragment.
+5. Grime in the corners, which needs a cavity term the screen-space pass could
+   write for the materials to read.

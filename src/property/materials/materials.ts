@@ -13,18 +13,20 @@
  *    the finish.
  */
 
-import * as THREE from 'three';
+import * as THREE from "three";
 import {
+  SKY_GLSL,
   concreteMaps,
   deckMaps,
   lawnMaps,
   mulchMap,
   shingleMaps,
   sidingMaps,
+  skyUniforms,
   stoneMaps,
   wearMap,
   type SidingProfile,
-} from './textures';
+} from "./textures";
 
 /** Shared across every patched shader. 0 = before renovation, 1 = after. */
 const renovation = { value: 1 };
@@ -33,10 +35,10 @@ const renovation = { value: 1 };
  * The colour the existing cladding has faded to. Fixed: the house is wearing
  * what it is wearing, whatever finish gets specified for the replacement.
  */
-const AGED_SIDING = '#bdb4a2';
-const AGED_ACCENT = '#c5bcab';
+const AGED_SIDING = "#bdb4a2";
+const AGED_ACCENT = "#c5bcab";
 
-import { SIDING_COLORS } from '../sidingColours';
+import { SIDING_COLORS } from "../sidingColours";
 
 interface Renovatable {
   material: THREE.MeshStandardMaterial;
@@ -82,7 +84,7 @@ export function getSidingProfile(): SidingProfile {
   return currentProfile;
 }
 
-let currentProfile: SidingProfile = 'lap';
+let currentProfile: SidingProfile = "lap";
 
 /** Repaint the *renovated* cladding. The weathered state is unaffected. */
 export function setSidingColour(id: string): void {
@@ -127,9 +129,15 @@ const FRAG_COLOR_HOOK = `#include <map_fragment>
   wceAged = mix(wceAged, vec3(wceChalk) * 1.05, wceFade * 0.38);
   wceAged *= 1.0 - uGrime * wceGrime;
   diffuseColor.rgb = mix(diffuseColor.rgb, wceAged, wceWear);
+  // A finished house is not a clean house. Work signed off last month still
+  // carries a wash off the eave and dirt kicked up low on the wall, and the
+  // after state being spotless was one of the things reading as a render.
+  diffuseColor.rgb *= 1.0 - 0.13 * wceGrime;
   // Everything sits in its own contact shadow where it meets grade; without
-  // this the walls look posed on the lawn rather than built into it.
-  diffuseColor.rgb *= mix(0.74, 1.0, smoothstep(0.0, 0.85, vWcePos.y));`;
+  // this the walls look posed on the lawn rather than built into it. Deeper
+  // and taller than it was: a screen-space pass cannot find this one, because
+  // the wall and the grass meet with no gap for it to see into.
+  diffuseColor.rgb *= mix(0.55, 1.0, smoothstep(0.0, 1.15, vWcePos.y));`;
 
 const FRAG_ROUGH_HOOK = `#include <roughnessmap_fragment>
   roughnessFactor = clamp(roughnessFactor + wceWear * (uRoughAdd + 0.14 * wceGrime), 0.035, 1.0);`;
@@ -168,18 +176,37 @@ interface VariedOptions {
    * nothing up the wall, which is worse than no variation at all.
    */
   upright?: boolean;
+  /**
+   * Metres of a poured slab. Flatwork is not one colour from the drive to the
+   * stoop — every pour cures its own shade — so the tone steps at the joint
+   * instead of drifting smoothly across it.
+   */
+  slab?: number;
+  /**
+   * Mowing bands: metres per pass, and how hard they read. A lawn is the one
+   * surface every viewer knows by heart, and what they know is that it is
+   * striped.
+   */
+  mow?: number;
+  mowAmount?: number;
 }
 
-function varied(material: THREE.MeshStandardMaterial, o: VariedOptions): THREE.MeshStandardMaterial {
+function varied(
+  material: THREE.MeshStandardMaterial,
+  o: VariedOptions,
+): THREE.MeshStandardMaterial {
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uVarScale = { value: 1 / o.scale };
     shader.uniforms.uVarAmount = { value: o.amount };
     shader.uniforms.uVarRough = { value: o.roughAdd ?? 0 };
     shader.uniforms.uVarUp = { value: o.upright ? 1 : 0 };
+    shader.uniforms.uVarSlab = { value: o.slab ? 1 / o.slab : 0 };
+    shader.uniforms.uVarMow = { value: o.mow ? 1 / o.mow : 0 };
+    shader.uniforms.uVarMowAmount = { value: o.mowAmount ?? 0 };
 
     shader.vertexShader = `varying vec3 vWcePos;
 ${shader.vertexShader}`.replace(
-      '#include <begin_vertex>',
+      "#include <begin_vertex>",
       `#include <begin_vertex>
   vWcePos = (modelMatrix * vec4(transformed, 1.0)).xyz;`,
     );
@@ -188,10 +215,13 @@ uniform float uVarScale;
 uniform float uVarAmount;
 uniform float uVarRough;
 uniform float uVarUp;
+uniform float uVarSlab;
+uniform float uVarMow;
+uniform float uVarMowAmount;
 ${VARIED_NOISE}
 ${shader.fragmentShader}`
       .replace(
-        '#include <map_fragment>',
+        "#include <map_fragment>",
         `#include <map_fragment>
   vec2 wceVp = vWcePos.xz * uVarScale;
   // Three octaves rather than two. The lawn is now a 340 m plane that runs
@@ -201,24 +231,30 @@ ${shader.fragmentShader}`
   float wceVar = wceNoise(wceVp * 0.29) * 0.34 + wceNoise(wceVp) * 0.42 + wceNoise(wceVp * 3.3) * 0.24;
   float wceVarUp = wceNoise(vec2(vWcePos.x - vWcePos.z, vWcePos.y * 1.7) * uVarScale);
   wceVar = mix(wceVar, wceVar * 0.55 + wceVarUp * 0.45, uVarUp);
-  diffuseColor.rgb *= 1.0 + (wceVar - 0.5) * uVarAmount;`,
+  diffuseColor.rgb *= 1.0 + (wceVar - 0.5) * uVarAmount;
+  // Each slab takes its own tone, stepping at the joint rather than easing.
+  if (uVarSlab > 0.0) {
+    diffuseColor.rgb *= 0.9 + 0.2 * wceHash(floor(vWcePos.xz * uVarSlab) + 0.5);
+  }
+  // Mowing bands. The blades lie toward the mower on one pass and away on the
+  // next, so alternate passes catch the light differently — and they wander,
+  // because nobody mows a straight line for forty metres.
+  if (uVarMowAmount > 0.0) {
+    float wceLine = (vWcePos.x * 0.94 + vWcePos.z * 0.34) * uVarMow;
+    wceLine += (wceNoise(vWcePos.xz * 0.055) - 0.5) * 0.9;
+    float wcePass = sin(wceLine * 3.14159);
+    diffuseColor.rgb *= 1.0 + sign(wcePass) * pow(abs(wcePass), 0.35) * uVarMowAmount;
+  }`,
       )
       .replace(
-        '#include <roughnessmap_fragment>',
+        "#include <roughnessmap_fragment>",
         `#include <roughnessmap_fragment>
   roughnessFactor = clamp(roughnessFactor + (0.5 - wceVar) * uVarRough, 0.04, 1.0);`,
       );
   };
-  material.customProgramCacheKey = () => 'wce-varied';
+  material.customProgramCacheKey = () => "wce-varied";
   return material;
 }
-
-/**
- * The scene's key light, so a reflected sun lands where the real one is. Kept
- * in step with `SUN` in `PropertyScene` by hand: it is one vector, and the
- * alternative is exporting light rig internals into the material library.
- */
-const SUN_DIR = new THREE.Vector3(15.5, 19, 14.5).normalize();
 
 /**
  * What glazing actually does.
@@ -228,95 +264,52 @@ const SUN_DIR = new THREE.Vector3(15.5, 19, 14.5).normalize();
  * whose strength climbs steeply with the angle you catch it at, and whose
  * content is sky above the horizon and lawn, drive and neighbours below it.
  * The sky is several stops brighter than anything the house is made of, which
- * is why a seven per cent reflection still reads bright — so the sky is
- * sampled at a gain and the tone mapper rolls the top off.
+ * is why a seven per cent reflection still reads bright.
  *
- * Doing this analytically instead of leaning on the environment map buys the
- * one thing a small PMREM cannot: a horizon that stays a line. That line
- * crossing a pane at a slightly different height on every storey is most of
- * what makes a facade of windows look glazed rather than boarded.
+ * It reflects `SKY_GLSL` — the same shader the dome is drawn with and the
+ * same one the environment map is prefiltered from. That is the point: what
+ * you see in a window is what is behind the house, down to the cloud it is
+ * catching, and there is no third approximation to drift out of step.
  */
-const GLASS_SKY = `
-vec3 wceGlassSky(vec3 r) {
-  float h = r.y;
-  vec3 c;
-  if (h > 0.0) {
-    c = mix(uSkyHorizon, uSkyHigh, pow(clamp(h * 2.2, 0.0, 1.0), 0.6));
-    // Cloud, projected onto a plane overhead so the banding compresses toward
-    // the horizon; a pane tipped up the elevation then finds new structure
-    // rather than more of the same gradient.
-    vec2 p = r.xz / max(h, 0.32);
-    float cl = wceNoise(p * 0.5) * 0.62 + wceNoise(p * 1.7) * 0.38;
-    c = mix(c, uSkyCloud, smoothstep(0.44, 0.86, cl) * smoothstep(0.0, 0.22, h) * 0.8);
-  } else {
-    // The haze gives out fast below the line. Let it linger and every pane
-    // caught from above fills with warm cream, which is exactly how this
-    // model's glazing came to look like painted board.
-    c = mix(uSkyHorizon, uSkyGround, pow(clamp(-h * 5.0, 0.0, 1.0), 0.6));
-    // What is actually across the street: trees, roofs, a drive. Too far to
-    // resolve, and that is the point — the lower half of a window is broken
-    // tone, never a clean ramp.
-    // The divisor is held well off zero on purpose: a true 1/h projection
-    // explodes at the horizon, and since a pane's reflected ray barely moves
-    // across its own width, that turned into mould blotches on the glass.
-    vec2 q = r.xz / max(-h, 0.32);
-    float lot = wceNoise(q * 0.65) * 0.6 + wceNoise(q * 2.1) * 0.4;
-    c *= 0.82 + 0.46 * lot;
-  }
-  // The haze line. Two gradients meeting at a hard edge look drawn, and a
-  // narrow one leaves the ground-floor windows — which reflect a shallow
-  // angle below the horizon, never the sky — as black holes in the wall.
-  c += uSkyHorizon * 0.4 * exp(-abs(h) * 10.0);
-  float sn = max(dot(r, uSunDir), 0.0);
-  c += vec3(1.0, 0.95, 0.84) * (pow(sn, 560.0) * 20.0 + pow(sn, 9.0) * 0.26);
-  return c;
-}`;
-
 interface GlazingOptions {
   /** How far above surface values the reflected sky is sampled. */
   gain: number;
 }
 
-function glazed(material: THREE.MeshPhysicalMaterial, o: GlazingOptions): THREE.MeshPhysicalMaterial {
+function glazed(
+  material: THREE.MeshPhysicalMaterial,
+  o: GlazingOptions,
+): THREE.MeshPhysicalMaterial {
   material.onBeforeCompile = (shader) => {
-    shader.uniforms.uSunDir = { value: SUN_DIR };
-    shader.uniforms.uSkyHigh = { value: new THREE.Color('#9db6db').convertSRGBToLinear() };
-    shader.uniforms.uSkyHorizon = { value: new THREE.Color('#e9eaea').convertSRGBToLinear() };
-    shader.uniforms.uSkyCloud = { value: new THREE.Color('#fbfaf7').convertSRGBToLinear() };
-    // What a window actually reflects when you are looking down at it: lawn,
-    // drive and haze at twenty metres in open daylight, not dark slate.
-    shader.uniforms.uSkyGround = { value: new THREE.Color('#8e9086').convertSRGBToLinear() };
+    for (const [k, u] of Object.entries(skyUniforms())) shader.uniforms[k] = u;
     // The room behind the pane. Dim, cool and never zero: a window that goes
     // to black on the shadow elevation reads as a hole cut in the wall.
-    shader.uniforms.uGlassRoom = { value: new THREE.Color('#3f4b5a').convertSRGBToLinear() };
+    shader.uniforms.uGlassRoom = {
+      value: new THREE.Color("#3f4b5a").convertSRGBToLinear(),
+    };
     shader.uniforms.uGlassGain = { value: o.gain };
 
     shader.vertexShader = `varying vec3 vWcePos;
 varying vec3 vWceNrm;
 ${shader.vertexShader}`
       .replace(
-        '#include <beginnormal_vertex>',
+        "#include <beginnormal_vertex>",
         `#include <beginnormal_vertex>
   // Panes are flat boxes on an unscaled merged mesh, so the upper 3×3 is
   // enough to carry the normal into world space.
   vWceNrm = mat3(modelMatrix) * objectNormal;`,
       )
-      .replace('#include <begin_vertex>', VERT_HOOK);
+      .replace("#include <begin_vertex>", VERT_HOOK);
 
     shader.fragmentShader = `varying vec3 vWcePos;
 varying vec3 vWceNrm;
-uniform vec3 uSunDir;
-uniform vec3 uSkyHigh;
-uniform vec3 uSkyHorizon;
-uniform vec3 uSkyCloud;
-uniform vec3 uSkyGround;
 uniform vec3 uGlassRoom;
 uniform float uGlassGain;
 ${VARIED_NOISE}
-${GLASS_SKY}
+${SKY_GLSL}
 ${shader.fragmentShader}`
       .replace(
-        '#include <map_fragment>',
+        "#include <map_fragment>",
         `#include <map_fragment>
   // No two rooms behind an elevation are the same darkness — blinds, depth,
   // what the light is doing inside. A slow world-space drift gives every
@@ -325,22 +318,48 @@ ${shader.fragmentShader}`
   diffuseColor.rgb *= 0.72 + 0.62 * wceRoom;`,
       )
       .replace(
-        '#include <emissivemap_fragment>',
+        "#include <emissivemap_fragment>",
         `#include <emissivemap_fragment>
   vec3 wceV = normalize(cameraPosition - vWcePos);
   vec3 wceN = normalize(vWceNrm);
   wceN *= dot(wceN, wceV) < 0.0 ? -1.0 : 1.0;
+  // Glass is not optically flat, and that is most of why a rendered window
+  // looks rendered. A sealed unit has a pressure difference across it and
+  // bows; the sheet itself came off a float line and has a slow waviness in
+  // it. Both are small — a degree or two — but they are what sweeps the
+  // reflection across a pane instead of stamping one value over the whole of
+  // it, and one flat value per opening is exactly what the elevation had.
+  //
+  // The bow is per-pane, off the box UVs, so it is centred on each opening
+  // rather than drifting across the wall; the waviness is world-space, so it
+  // is continuous across the mullions of one wide window the way a run of
+  // glass out of one crate would be.
+  vec2 wceBow = vUv - 0.5;
+  vec3 wceTanU = normalize(cross(vec3(0.0, 1.0, 0.0), wceN) + vec3(1e-5));
+  vec3 wceTanV = cross(wceN, wceTanU);
+  float wceWave = wceNoise(vec2(vWcePos.x * 0.8 + vWcePos.z * 0.8, vWcePos.y * 0.8)) - 0.5;
+  wceN = normalize(
+    wceN
+    + wceTanU * (wceBow.x * 0.055 + wceWave * 0.03)
+    + wceTanV * (wceBow.y * 0.055 - wceWave * 0.022));
   float wceCos = clamp(dot(wceN, wceV), 0.0, 1.0);
   // An insulated unit has two glass surfaces facing out, so the sheet returns
   // roughly twice a single pane's four per cent before the angle takes over.
   float wceFres = 0.075 + 0.925 * pow(1.0 - wceCos, 5.0);
-  totalEmissiveRadiance += wceGlassSky(reflect(-wceV, wceN)) * (wceFres * uGlassGain);
+  totalEmissiveRadiance += wceSkyRadiance(reflect(-wceV, wceN)) * (wceFres * uGlassGain);
   // Whatever the reflection is not carrying, the interior is: the same slow
-  // drift that varies the base colour varies how lit each room is.
-  totalEmissiveRadiance += uGlassRoom * ((1.0 - wceFres) * (0.68 + 0.64 * wceRoom));`,
+  // drift that varies the base colour varies how lit each room is. The top of
+  // a pane looks at a lit ceiling and the bottom at a floor in shadow, so the
+  // room is graded up the opening — without it every window is one flat
+  // rectangle, which is the other half of why they read as holes.
+  float wceRoomGrade = 0.62 + 0.9 * smoothstep(0.0, 1.0, vUv.y);
+  totalEmissiveRadiance += uGlassRoom * ((1.0 - wceFres) * (0.68 + 0.64 * wceRoom) * wceRoomGrade);`,
       );
   };
-  material.customProgramCacheKey = () => 'wce-glazed';
+  // The glazing carries no maps, so three would not vary the uv attribute at
+  // all; the pane-local bow and the room grade both need it.
+  material.defines = { ...(material.defines ?? {}), USE_UV: "" };
+  material.customProgramCacheKey = () => "wce-glazed";
   return material;
 }
 
@@ -361,23 +380,27 @@ interface FoliageOptions {
  * sitting in the shrub's own shade. The second is the important one — it is
  * what turns a silhouette into a mass — and it costs a dot product.
  */
-function foliaged(material: THREE.MeshStandardMaterial, o: FoliageOptions): THREE.MeshStandardMaterial {
+function foliaged(
+  material: THREE.MeshStandardMaterial,
+  o: FoliageOptions,
+): THREE.MeshStandardMaterial {
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uLeafBright = { value: new THREE.Vector3(...o.bright) };
     shader.uniforms.uLeafDeep = { value: new THREE.Vector3(...o.deep) };
     shader.uniforms.uLeafScale = { value: 1 / o.scale };
 
-    shader.vertexShader = `varying vec3 vWcePos;\n${shader.vertexShader}`.replace(
-      '#include <begin_vertex>',
-      VERT_HOOK,
-    );
+    shader.vertexShader =
+      `varying vec3 vWcePos;\n${shader.vertexShader}`.replace(
+        "#include <begin_vertex>",
+        VERT_HOOK,
+      );
     shader.fragmentShader = `varying vec3 vWcePos;
 uniform vec3 uLeafBright;
 uniform vec3 uLeafDeep;
 uniform float uLeafScale;
 ${VARIED_NOISE}
 ${shader.fragmentShader}`.replace(
-      '#include <emissivemap_fragment>',
+      "#include <emissivemap_fragment>",
       `#include <emissivemap_fragment>
   vec3 wceLp = vWcePos * uLeafScale;
   float wceLeaf = wceNoise(wceLp.xz + wceLp.y * 1.7) * 0.62
@@ -391,25 +414,31 @@ ${shader.fragmentShader}`.replace(
   roughnessFactor = clamp(roughnessFactor + (0.5 - wceLeaf) * 0.18, 0.4, 1.0);`,
     );
   };
-  material.customProgramCacheKey = () => 'wce-foliage';
+  material.customProgramCacheKey = () => "wce-foliage";
   return material;
 }
 
-function renovatable(material: THREE.MeshStandardMaterial, o: RenovOptions): THREE.MeshStandardMaterial {
+function renovatable(
+  material: THREE.MeshStandardMaterial,
+  o: RenovOptions,
+): THREE.MeshStandardMaterial {
   const [fresh, aged] = o.normal ?? [1, 1];
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uRenovation = renovation;
     shader.uniforms.uWear = { value: wearMap() };
-    shader.uniforms.uAged = { value: new THREE.Color(o.aged).convertSRGBToLinear() };
+    shader.uniforms.uAged = {
+      value: new THREE.Color(o.aged).convertSRGBToLinear(),
+    };
     shader.uniforms.uAgedMix = { value: o.agedMix ?? 0.8 };
     shader.uniforms.uGrime = { value: o.grime ?? 0.3 };
     shader.uniforms.uRoughAdd = { value: o.roughAdd ?? 0.2 };
     shader.uniforms.uWearScale = { value: 1 / (o.wearScale ?? 3.2) };
 
-    shader.vertexShader = `varying vec3 vWcePos;\n${shader.vertexShader}`.replace(
-      '#include <begin_vertex>',
-      VERT_HOOK,
-    );
+    shader.vertexShader =
+      `varying vec3 vWcePos;\n${shader.vertexShader}`.replace(
+        "#include <begin_vertex>",
+        VERT_HOOK,
+      );
     shader.fragmentShader = `varying vec3 vWcePos;
 uniform float uRenovation;
 uniform sampler2D uWear;
@@ -419,12 +448,66 @@ uniform float uGrime;
 uniform float uRoughAdd;
 uniform float uWearScale;
 ${shader.fragmentShader}`
-      .replace('#include <map_fragment>', FRAG_COLOR_HOOK)
-      .replace('#include <roughnessmap_fragment>', FRAG_ROUGH_HOOK);
+      .replace("#include <map_fragment>", FRAG_COLOR_HOOK)
+      .replace("#include <roughnessmap_fragment>", FRAG_ROUGH_HOOK);
   };
-  material.customProgramCacheKey = () => 'wce-renovatable';
+  material.customProgramCacheKey = () => "wce-renovatable";
   material.normalScale.set(fresh, fresh);
   renovatables.push({ material, freshNormal: fresh, agedNormal: aged });
+  return material;
+}
+
+interface CueOptions {
+  /** Lift along the sky-facing arris. */
+  sky?: number;
+  /** Darkening on downward-facing faces. */
+  under?: number;
+  /** Sheen at the silhouette, where a real edge is never quite sharp. */
+  rim?: number;
+}
+
+/**
+ * Edges, and what is under them.
+ *
+ * Every board in this model is a mathematically perfect box, and a perfect
+ * edge is the classic tell: a real arris is broken, and the narrow face along
+ * the top of a casing or a corner board is pointed straight at the brightest
+ * thing in the scene, so it runs as a fine light line. The matching half is
+ * the underside — of a sill, a head casing, a soffit, a deck rim — which sits
+ * in its own shadow. A screen-space pass cannot find either of them, because
+ * neither has a gap for it to see into.
+ *
+ * Both fall out of one dot product against world up, carried into view space
+ * rather than by inverting the view matrix, and the rim is a Fresnel term
+ * that puts a little sheen on painted trim where it turns away.
+ *
+ * Wraps whatever hook the material already has, so a renovatable or varied
+ * material keeps its own behaviour and gets this on top.
+ */
+function cued<T extends THREE.Material>(material: T, o: CueOptions): T {
+  const prev = material.onBeforeCompile.bind(material);
+  const prevKey = material.customProgramCacheKey.bind(material);
+  material.onBeforeCompile = (shader, renderer) => {
+    prev(shader, renderer);
+    shader.uniforms.uCueSky = { value: o.sky ?? 0 };
+    shader.uniforms.uCueUnder = { value: o.under ?? 0 };
+    shader.uniforms.uCueRim = { value: o.rim ?? 0 };
+    shader.fragmentShader = `uniform float uCueSky;
+uniform float uCueUnder;
+uniform float uCueRim;
+${shader.fragmentShader}`.replace(
+      "#include <emissivemap_fragment>",
+      `#include <emissivemap_fragment>
+  vec3 wceUpV = normalize(mat3(viewMatrix) * vec3(0.0, 1.0, 0.0));
+  float wceFacing = dot(normalize(normal), wceUpV);
+  diffuseColor.rgb *= 1.0
+    + uCueSky * smoothstep(0.42, 0.96, wceFacing)
+    - uCueUnder * smoothstep(-0.1, -0.85, wceFacing);
+  float wceGraze = pow(1.0 - clamp(dot(normalize(normal), normalize(vViewPosition)), 0.0, 1.0), 4.0);
+  diffuseColor.rgb *= 1.0 + uCueRim * wceGraze;`,
+    );
+  };
+  material.customProgramCacheKey = () => `${prevKey()}-cued`;
   return material;
 }
 
@@ -481,9 +564,9 @@ export function createMaterials(env: THREE.Texture | null): HouseMaterials {
 
   const siding = sidingMaps();
   const shingle = shingleMaps();
-  const found = concreteMaps('foundation');
+  const found = concreteMaps("foundation");
   const stone = stoneMaps();
-  const flat = concreteMaps('flatwork');
+  const flat = concreteMaps("flatwork");
   const lawnTex = lawnMaps();
   const deckTex = deckMaps();
 
@@ -511,7 +594,14 @@ export function createMaterials(env: THREE.Texture | null): HouseMaterials {
         metalness: 0,
         envMapIntensity: 0.62,
       }),
-      { aged: AGED_SIDING, agedMix: 1, grime: 0.44, roughAdd: 0.3, wearScale: 3.4, normal: [1, 1.7] },
+      {
+        aged: AGED_SIDING,
+        agedMix: 1,
+        grime: 0.44,
+        roughAdd: 0.3,
+        wearScale: 3.4,
+        normal: [1, 1.7],
+      },
     ),
 
     // Gable ends and the garage front get a slightly lighter board for relief.
@@ -524,42 +614,117 @@ export function createMaterials(env: THREE.Texture | null): HouseMaterials {
         metalness: 0,
         envMapIntensity: 0.62,
       }),
-      { aged: AGED_ACCENT, agedMix: 1, grime: 0.4, roughAdd: 0.3, wearScale: 3.4, normal: [1, 1.7] },
+      {
+        aged: AGED_ACCENT,
+        agedMix: 1,
+        grime: 0.4,
+        roughAdd: 0.3,
+        wearScale: 3.4,
+        normal: [1, 1.7],
+      },
     ),
 
-    trim: renovatable(
-      std({ color: '#f0ece4', roughness: 0.52, metalness: 0, envMapIntensity: 0.6 }),
-      { aged: '#c8bda6', agedMix: 0.8, grime: 0.34, roughAdd: 0.28, wearScale: 2.4 },
+    // Casing, corner boards and sills. They carry most of the edges on the
+    // house, so they carry most of the cue work too.
+    trim: cued(
+      renovatable(
+        std({
+          color: "#f0ece4",
+          roughness: 0.52,
+          metalness: 0,
+          envMapIntensity: 0.6,
+        }),
+        {
+          aged: "#c8bda6",
+          agedMix: 0.8,
+          grime: 0.34,
+          roughAdd: 0.28,
+          wearScale: 2.4,
+        },
+      ),
+      { sky: 0.2, under: 0.34, rim: 0.1 },
     ),
 
-    soffit: renovatable(
-      std({ color: '#e7e2d8', roughness: 0.66, metalness: 0, envMapIntensity: 0.4 }),
-      { aged: '#c3b69c', agedMix: 0.7, grime: 0.3, roughAdd: 0.18, wearScale: 2.6 },
+    soffit: cued(
+      renovatable(
+        std({
+          color: "#e7e2d8",
+          roughness: 0.66,
+          metalness: 0,
+          envMapIntensity: 0.4,
+        }),
+        {
+          aged: "#c3b69c",
+          agedMix: 0.7,
+          grime: 0.3,
+          roughAdd: 0.18,
+          wearScale: 2.6,
+        },
+      ),
+      { under: 0.3 },
     ),
 
-    gutter: renovatable(
-      std({ color: '#eeeae2', roughness: 0.38, metalness: 0.15, envMapIntensity: 0.9 }),
-      { aged: '#c0b6a4', agedMix: 0.74, grime: 0.5, roughAdd: 0.3, wearScale: 1.9 },
+    gutter: cued(
+      renovatable(
+        std({
+          color: "#eeeae2",
+          roughness: 0.38,
+          metalness: 0.15,
+          envMapIntensity: 0.9,
+        }),
+        {
+          aged: "#c0b6a4",
+          agedMix: 0.74,
+          grime: 0.5,
+          roughAdd: 0.3,
+          wearScale: 1.9,
+        },
+      ),
+      { sky: 0.16, under: 0.42, rim: 0.14 },
     ),
 
-    deck: renovatable(
-      std({
-        color: '#a08d78',
-        map: tile(deckTex.map, 1.05),
-        normalMap: tile(deckTex.normalMap, 1.05),
-        roughness: 0.76,
-        metalness: 0,
-        envMapIntensity: 0.5,
-      }),
-      // The board relief is carried harder than anywhere else on the house:
-      // a deck seen down its length is nothing but edges, and a flat one
-      // collapses into a single plane at the rear camera's distance.
-      { aged: '#9a978e', agedMix: 0.82, grime: 0.24, roughAdd: 0.14, wearScale: 2.8, normal: [1.5, 1.9] },
+    deck: cued(
+      renovatable(
+        std({
+          color: "#a08d78",
+          map: tile(deckTex.map, 1.05),
+          normalMap: tile(deckTex.normalMap, 1.05),
+          roughness: 0.76,
+          metalness: 0,
+          envMapIntensity: 0.5,
+        }),
+        // The board relief is carried harder than anywhere else on the house:
+        // a deck seen down its length is nothing but edges, and a flat one
+        // collapses into a single plane at the rear camera's distance.
+        {
+          aged: "#9a978e",
+          agedMix: 0.82,
+          grime: 0.24,
+          roughAdd: 0.14,
+          wearScale: 2.8,
+          normal: [1.5, 1.9],
+        },
+      ),
+      { under: 0.4, rim: 0.08 },
     ),
 
-    railing: renovatable(
-      std({ color: '#efebe3', roughness: 0.5, metalness: 0, envMapIntensity: 0.6 }),
-      { aged: '#c9bda6', agedMix: 0.7, grime: 0.3, roughAdd: 0.22, wearScale: 2.2 },
+    railing: cued(
+      renovatable(
+        std({
+          color: "#efebe3",
+          roughness: 0.5,
+          metalness: 0,
+          envMapIntensity: 0.6,
+        }),
+        {
+          aged: "#c9bda6",
+          agedMix: 0.7,
+          grime: 0.3,
+          roughAdd: 0.22,
+          wearScale: 2.2,
+        },
+      ),
+      { sky: 0.22, under: 0.3, rim: 0.12 },
     ),
 
     // Not part of a siding job — deliberately identical in both states, which
@@ -569,7 +734,7 @@ export function createMaterials(env: THREE.Texture | null): HouseMaterials {
     // weathering drift across the planes.
     roof: varied(
       std({
-        color: '#6b6c71',
+        color: "#6b6c71",
         map: tile(shingle.map, 1.0),
         normalMap: tile(shingle.normalMap, 1.0),
         roughness: 0.9,
@@ -584,7 +749,7 @@ export function createMaterials(env: THREE.Texture | null): HouseMaterials {
     // broad drift the ground does, folded up the wall rather than across it.
     foundation: varied(
       std({
-        color: '#8b8983',
+        color: "#8b8983",
         map: tile(found.map, 1.6),
         normalMap: tile(found.normalMap, 1.6),
         roughness: 0.95,
@@ -597,16 +762,19 @@ export function createMaterials(env: THREE.Texture | null): HouseMaterials {
     // Ledgestone water table and porch base, straight off the reference. The
     // blend is in the tile; this adds the pier-to-pier drift that stops two
     // columns of the same wall looking stamped from one another.
-    stone: varied(
-      std({
-        color: '#9a978f',
-        map: tile(stone.map, 1.45),
-        normalMap: tile(stone.normalMap, 1.45),
-        roughness: 0.92,
-        metalness: 0,
-        envMapIntensity: 0.34,
-      }),
-      { scale: 3.0, amount: 0.13, roughAdd: 0.04, upright: true },
+    stone: cued(
+      varied(
+        std({
+          color: "#9a978f",
+          map: tile(stone.map, 1.45),
+          normalMap: tile(stone.normalMap, 1.45),
+          roughness: 0.92,
+          metalness: 0,
+          envMapIntensity: 0.34,
+        }),
+        { scale: 3.0, amount: 0.13, roughAdd: 0.04, upright: true },
+      ),
+      { sky: 0.12, under: 0.3 },
     ),
 
     glass: (() => {
@@ -617,7 +785,7 @@ export function createMaterials(env: THREE.Texture | null): HouseMaterials {
       // clearcoat — which was doing the same thing again — is gone.
       const g = glazed(
         new THREE.MeshPhysicalMaterial({
-          color: '#16202b',
+          color: "#16202b",
           roughness: 0.16,
           metalness: 0,
           // No standard specular lobe at all. The light rig carries three
@@ -640,45 +808,79 @@ export function createMaterials(env: THREE.Texture | null): HouseMaterials {
     // Crisp and bright against the darkened glazing: the sash and muntin
     // grid is the drawing on the elevation, so it stays the cleanest white
     // on the house.
-    sash: std({ color: '#f7f4ee', roughness: 0.4, metalness: 0, envMapIntensity: 0.62 }),
+    sash: cued(
+      std({
+        color: "#f7f4ee",
+        roughness: 0.4,
+        metalness: 0,
+        envMapIntensity: 0.62,
+      }),
+      {
+        sky: 0.2,
+        under: 0.36,
+        rim: 0.1,
+      },
+    ),
 
     // The reference keeps red entirely in the interface and none of it on the
     // building, so the entry and the garage are the deep navy of the mark.
-    entryDoor: std({ color: '#16233a', roughness: 0.36, metalness: 0, envMapIntensity: 0.85 }),
+    entryDoor: std({
+      color: "#16233a",
+      roughness: 0.36,
+      metalness: 0,
+      envMapIntensity: 0.85,
+    }),
 
-    garageDoor: std({ color: '#1b2a41', roughness: 0.44, metalness: 0.08, envMapIntensity: 0.78 }),
+    garageDoor: std({
+      color: "#1b2a41",
+      roughness: 0.44,
+      metalness: 0.08,
+      envMapIntensity: 0.78,
+    }),
 
-    shutter: std({ color: '#141f33', roughness: 0.55, metalness: 0, envMapIntensity: 0.5 }),
+    shutter: std({
+      color: "#141f33",
+      roughness: 0.55,
+      metalness: 0,
+      envMapIntensity: 0.5,
+    }),
 
-    hardware: std({ color: '#2c2f33', roughness: 0.34, metalness: 0.85, envMapIntensity: 1.25 }),
+    hardware: std({
+      color: "#2c2f33",
+      roughness: 0.34,
+      metalness: 0.85,
+      envMapIntensity: 1.25,
+    }),
 
     flatwork: varied(
       std({
-        color: '#b7b2a8',
+        color: "#b7b2a8",
         map: tile(flat.map, 2.4),
         normalMap: tile(flat.normalMap, 2.4),
         roughness: 0.95,
         metalness: 0,
         envMapIntensity: 0.28,
       }),
-      { scale: 6.5, amount: 0.14, roughAdd: 0.06 },
+      { scale: 6.5, amount: 0.14, roughAdd: 0.06, slab: 2.4 },
     ),
 
     lawn: varied(
       std({
-        color: '#9fb07c',
+        color: "#b6c491",
         map: tile(lawnTex.map, 2.2),
         normalMap: tile(lawnTex.normalMap, 2.2),
         roughness: 1,
         metalness: 0,
         envMapIntensity: 0.28,
       }),
-      { scale: 19, amount: 0.22 },
+      { scale: 19, amount: 0.26, mow: 1.15, mowAmount: 0.055 },
     ),
 
     mulch: varied(
       std({
-        color: '#7a5a44',
+        // The tile carries the brown now. Multiplying a dark map by a dark
+        // colour is what put the beds at three per cent albedo, i.e. a hole.
+        color: "#c9b6a4",
         map: tile(mulchMap(), 0.9),
         roughness: 1,
         metalness: 0,
@@ -688,7 +890,13 @@ export function createMaterials(env: THREE.Texture | null): HouseMaterials {
     ),
 
     shrub: foliaged(
-      std({ color: '#4c6a41', roughness: 0.88, metalness: 0, flatShading: true, envMapIntensity: 0.4 }),
+      std({
+        color: "#4c6a41",
+        roughness: 0.88,
+        metalness: 0,
+        flatShading: true,
+        envMapIntensity: 0.4,
+      }),
       { bright: [1.22, 1.18, 0.78], deep: [0.56, 0.7, 0.54], scale: 0.4 },
     ),
 
@@ -696,16 +904,29 @@ export function createMaterials(env: THREE.Texture | null): HouseMaterials {
     // a little further toward yellow, which is what separates the two masses
     // where a shrub sits in front of a trunk.
     foliage: foliaged(
-      std({ color: '#5a7845', roughness: 0.9, metalness: 0, flatShading: true, envMapIntensity: 0.4 }),
+      std({
+        color: "#5a7845",
+        roughness: 0.9,
+        metalness: 0,
+        flatShading: true,
+        envMapIntensity: 0.4,
+      }),
       { bright: [1.22, 1.17, 0.78], deep: [0.58, 0.72, 0.56], scale: 0.95 },
     ),
 
-    bark: std({ color: '#5a4d41', roughness: 0.96, metalness: 0, envMapIntensity: 0.22 }),
+    bark: std({
+      color: "#5a4d41",
+      roughness: 0.96,
+      metalness: 0,
+      envMapIntensity: 0.22,
+    }),
 
     all: [],
   };
 
-  m.all = Object.values(m).filter((v): v is THREE.Material => v instanceof THREE.Material);
+  m.all = Object.values(m).filter(
+    (v): v is THREE.Material => v instanceof THREE.Material,
+  );
   cached = m;
   return m;
 }
@@ -716,6 +937,6 @@ export function disposeMaterials(): void {
   for (const t of retiled.values()) t.dispose();
   retiled.clear();
   renovatables.length = 0;
-  currentProfile = 'lap';
+  currentProfile = "lap";
   cached = null;
 }

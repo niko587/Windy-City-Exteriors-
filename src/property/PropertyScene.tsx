@@ -21,8 +21,10 @@ import {
   setSidingProfile,
   type HouseMaterials,
 } from './materials/materials';
-import { studioEnvironment, type SidingProfile } from './materials/textures';
+import { skyDomeMaterial, studioEnvironment, type SidingProfile } from './materials/textures';
+import { applyLeafAtlas } from './materials/foliage';
 import { projected } from './hotspotProjection';
+import { Post } from './post';
 import { hotspots } from './services';
 import { experience, getState, useExperience } from './store';
 import { WallAssembly } from './WallAssembly';
@@ -31,61 +33,42 @@ import { stagePresence } from './wallLayers';
 const SUN = new THREE.Vector3(15.5, 19, 14.5);
 
 /* -------------------------------------------------------------------------
-   Backdrop: a studio gradient rather than a sky. The reference's ground is
-   warm porcelain, and the house should sit on the page, not under a blue sky.
+   Backdrop: the sky the house is actually lit by.
+
+   This was a studio gradient — a warm porcelain wash meant to put the house
+   on a page rather than under weather. It was also the loudest remaining
+   tell that the frame was a render: the windows reflected one sky, the
+   environment map lit the walls with a second, and the dome behind the roof
+   showed a third that had no sun in it at all.
+
+   There is now one sky. `skyDomeMaterial()` is the same shader that
+   `studioEnvironment` prefilters into the environment map and that the
+   glazing samples for its reflections, so the cloud in the window is the
+   cloud behind the house, and the light on the siding comes from the sky you
+   can see above it. Its `uStageMix` drains the daylight to studio navy for
+   the wall stage — the dome, the reflections and the image-based light all
+   drain together, instead of the windows staying sunny while the room goes
+   dark.
    ------------------------------------------------------------------------- */
 
 function Backdrop(): React.JSX.Element {
-  const material = useMemo(
-    () =>
-      new THREE.ShaderMaterial({
-        side: THREE.BackSide,
-        depthWrite: false,
-        fog: false,
-        uniforms: {
-          uHigh: { value: new THREE.Color('#9fb8da').convertSRGBToLinear() },
-          uHorizon: { value: new THREE.Color('#f7f2ea').convertSRGBToLinear() },
-          uLow: { value: new THREE.Color('#e4ddd0').convertSRGBToLinear() },
-          // The daylight sky drains to a studio navy as the wall stage takes over.
-          uStageHigh: { value: new THREE.Color('#050f1e').convertSRGBToLinear() },
-          uStageHorizon: { value: new THREE.Color('#102943').convertSRGBToLinear() },
-          uStageLow: { value: new THREE.Color('#03080f').convertSRGBToLinear() },
-          uStage: { value: 0 },
-        },
-        vertexShader: `
-          varying vec3 vDir;
-          void main() {
-            vDir = normalize(position);
-            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-          }`,
-        fragmentShader: `
-          uniform vec3 uHigh; uniform vec3 uHorizon; uniform vec3 uLow;
-          uniform vec3 uStageHigh; uniform vec3 uStageHorizon; uniform vec3 uStageLow;
-          uniform float uStage;
-          varying vec3 vDir;
-          void main() {
-            float h = vDir.y;
-            vec3 high = mix(uHigh, uStageHigh, uStage);
-            vec3 horizon = mix(uHorizon, uStageHorizon, uStage);
-            vec3 low = mix(uLow, uStageLow, uStage);
-            vec3 c = h > 0.0
-              ? mix(horizon, high, pow(clamp(h * 1.35, 0.0, 1.0), 0.62))
-              : mix(horizon, low, pow(clamp(-h * 3.4, 0.0, 1.0), 0.95));
-            // A little extra warmth low in the west, where the sun sits.
-            float glow = smoothstep(0.55, 1.0, dot(normalize(vec3(vDir.x, 0.0, vDir.z)), vec3(0.72, 0.0, 0.69)));
-            c += glow * (1.0 - abs(h)) * vec3(0.045, 0.026, 0.004) * (1.0 - uStage);
-            gl_FragColor = vec4(c, 1.0);
-          }`,
-      }),
-    [],
-  );
+  const material = useMemo(() => skyDomeMaterial(), []);
   useEffect(() => () => material.dispose(), [material]);
   useFrame(() => {
-    material.uniforms.uStage.value = stagePresence.value;
+    material.uniforms.uStageMix.value = stagePresence.value;
   });
   return (
-    <mesh scale={400} renderOrder={-1} frustumCulled={false}>
-      <sphereGeometry args={[1, 24, 16]} />
+    // 300, not 400. The camera's far plane is 420 and the camera itself
+    // stands ~43 m out, so a 400 m dome puts its far side at 443 — past the
+    // far plane, which clipped the top of the sky away along a dead straight
+    // line and left the treeline standing against black. At 300 the whole
+    // dome is inside the frustum from anywhere the tour goes, and it is still
+    // twice as far away as the farthest tree.
+    //
+    // Segments raised from 24x16: the sun disc and its aureole are small
+    // enough that a coarse dome quantises the horizon band around them.
+    <mesh scale={300} renderOrder={-1} frustumCulled={false}>
+      <sphereGeometry args={[1, 32, 16]} />
       <primitive object={material} attach="material" />
     </mesh>
   );
@@ -106,6 +89,12 @@ function Property({ onBuilt }: { onBuilt: (triangles: number) => void }): React.
     const env = studioEnvironment(gl);
     scene.environment = env;
     const mats = createMaterials(env) as HouseMaterials & Record<string, THREE.Material>;
+    // The planting is alpha-cut cards now, so the two materials that shade it
+    // need the leaf atlas the cards are cut from. Applied here rather than in
+    // the material library because the atlas belongs to the geometry: it is
+    // what `house.ts` builds the cards against, and nothing else uses it.
+    applyLeafAtlas(mats.shrub as THREE.MeshStandardMaterial);
+    applyLeafAtlas(mats.foliage as THREE.MeshStandardMaterial);
     const built = buildProperty();
     return { geometries: built.geometries, materials: mats, triangles: built.triangles };
   }, [gl, scene]);
@@ -172,6 +161,12 @@ function Lighting({ quality }: { quality: 1 | 2 | 3 }): React.JSX.Element {
     c.updateProjectionMatrix();
     l.shadow.bias = -0.0004;
     l.shadow.normalBias = 0.028;
+    // The sun is half a degree wide, so nothing it casts has a razor edge.
+    // VSM is the only filter left in this version of three that gives a real
+    // penumbra, and it is safe here because the map is rendered once and the
+    // blur is paid for exactly four times in a session.
+    l.shadow.radius = 3.4;
+    l.shadow.blurSamples = 10;
     l.target.position.set(-1, 2, -3);
     l.target.updateMatrixWorld();
     // The map is only ever resized during a shadow render, and shadow renders
@@ -199,23 +194,30 @@ function Lighting({ quality }: { quality: 1 | 2 | 3 }): React.JSX.Element {
 
   return (
     <group ref={rig}>
-      {/* Sky and ground bounce. Carries the shadow side, so the dark faces stay
-          readable without flattening the whole model. */}
-      <hemisphereLight args={['#c4d8f4', '#a99a7e', 0.56]} />
+      {/* Sky and ground bounce. */}
+      <hemisphereLight args={['#bcd3f2', '#9d8f74', 0.34]} />
       <directionalLight
         ref={sun}
         position={[SUN.x, SUN.y, SUN.z]}
-        intensity={2.32}
-        color="#fff1dd"
+        intensity={3.35}
+        color="#fff2de"
         castShadow
         shadow-mapSize-width={size}
         shadow-mapSize-height={size}
       />
-      {/* Bounce from the lawn and the driveway, no shadow cost. The rear one
-          separates the roof from the sky; the front one opens up the eaves. */}
-      <directionalLight position={[-14, 7, -16]} intensity={0.42} color="#dbe4f4" />
-      <directionalLight position={[-6, 2.5, 20]} intensity={0.26} color="#fdf3e4" />
-      <directionalLight position={[2, 14, -22]} intensity={0.2} color="#eef3ff" />
+      {/*
+        Two weak bounces, where there used to be three strong ones.
+
+        The old rig ran the sun at 2.32 against 1.44 of fill — a ratio under
+        two to one, which is overcast light, not a sunny day. Outdoors the sun
+        beats the sky by something closer to six to one, and that ratio is most
+        of what the eye reads as daylight. The fill was that heavy because
+        nothing was opening up the eaves and the reveals; screen-space
+        occlusion does that now, and does it where the geometry actually is
+        rather than by flooding the whole model.
+      */}
+      <directionalLight position={[-14, 7, -16]} intensity={0.2} color="#d3e0f6" />
+      <directionalLight position={[-6, 2.5, 20]} intensity={0.12} color="#fdf3e4" />
     </group>
   );
 }
@@ -245,7 +247,19 @@ function StaticShadows(): null {
    ------------------------------------------------------------------------- */
 
 function SplitRenderer(): null {
-  useFrame(({ gl, scene, camera, size }) => {
+  const gl = useThree((s) => s.gl);
+  const size = useThree((s) => s.size);
+  const quality = useExperience((s) => s.quality);
+  const post = useMemo(() => new Post(), []);
+  const clock = useRef(0);
+
+  useEffect(() => () => post.dispose(), [post]);
+  useEffect(() => {
+    post.setSize(size.width, size.height, gl.getPixelRatio());
+  }, [post, gl, size]);
+  useEffect(() => post.setQuality(quality), [post, quality]);
+
+  useFrame(({ scene, camera }, delta) => {
     const { split, mode } = getState();
     // Logical pixels, not device pixels: three multiplies the viewport and the
     // scissor by the pixel ratio itself. Passing device pixels here scales the
@@ -254,36 +268,42 @@ function SplitRenderer(): null {
     const w = size.width;
     const h = size.height;
 
+    // Everything lands in the post target rather than on the canvas, so the
+    // occlusion and the grade see the finished frame and the two halves of the
+    // comparison are treated identically.
+    gl.setRenderTarget(post.color);
+    gl.setViewport(0, 0, w, h);
+
     if (mode !== 'transform') {
       setRenovation(1);
       gl.setScissorTest(false);
-      gl.setViewport(0, 0, w, h);
       gl.autoClear = true;
       gl.render(scene, camera);
-      return;
+    } else {
+      const x = THREE.MathUtils.clamp(split, 0, 1) * w;
+      gl.setScissorTest(false);
+      gl.autoClear = true;
+      gl.clear();
+      gl.autoClear = false;
+      gl.setScissorTest(true);
+
+      if (x > 0) {
+        setRenovation(0);
+        gl.setScissor(0, 0, x, h);
+        gl.render(scene, camera);
+      }
+      if (x < w) {
+        setRenovation(1);
+        gl.setScissor(x, 0, w - x, h);
+        gl.render(scene, camera);
+      }
+
+      gl.setScissorTest(false);
+      gl.autoClear = true;
     }
 
-    const x = THREE.MathUtils.clamp(split, 0, 1) * w;
-    gl.setViewport(0, 0, w, h);
-    gl.setScissorTest(false);
-    gl.autoClear = true;
-    gl.clear();
-    gl.autoClear = false;
-    gl.setScissorTest(true);
-
-    if (x > 0) {
-      setRenovation(0);
-      gl.setScissor(0, 0, x, h);
-      gl.render(scene, camera);
-    }
-    if (x < w) {
-      setRenovation(1);
-      gl.setScissor(x, 0, w - x, h);
-      gl.render(scene, camera);
-    }
-
-    gl.setScissorTest(false);
-    gl.autoClear = true;
+    clock.current += delta;
+    post.render(gl, camera as THREE.PerspectiveCamera, clock.current * 60);
   }, 1);
 
   return null;
@@ -390,10 +410,9 @@ export default function PropertyScene({ onBuilt }: PropertySceneProps): React.JS
   return (
     <Canvas
       /* R3F's bare `shadows` asks for PCFSoftShadowMap, which this version of
-         three has removed; it silently falls back to PCF and warns three
-         times a session. Asking for what we actually get is quieter and no
-         different on screen. */
-      shadows={{ type: THREE.PCFShadowMap }}
+         three has removed. Variance shadow maps are what is left that has a
+         penumbra, and the scene is static, so the blur is rendered once. */
+      shadows={{ type: THREE.VSMShadowMap }}
       dpr={quality === 3 ? [1, 1.75] : quality === 2 ? [1, 1.25] : 1}
       gl={{
         antialias: true,
@@ -403,9 +422,18 @@ export default function PropertyScene({ onBuilt }: PropertySceneProps): React.JS
       }}
       camera={{ fov: 20, near: 0.6, far: 420, position: [24, 9, 34] }}
       onCreated={({ gl, scene, camera }) => {
-        gl.toneMapping = THREE.ACESFilmicToneMapping;
-        gl.toneMappingExposure = 1.03;
-        scene.fog = new THREE.Fog(new THREE.Color('#eee8dc'), 58, 178);
+        // The grade lives in `post.ts` now. Tone mapping here would compress
+        // the frame before the occlusion and the bloom ever see it, and both
+        // of those have to work on linear light to mean anything.
+        gl.toneMapping = THREE.NoToneMapping;
+        // Aerial perspective, and it has to agree with the sky. This was a
+        // warm cream matched to the old studio backdrop; against a real sky it
+        // laid a beige wash over the far lawn and bleached the treeline to a
+        // ghost, which is most of what made the distance read as fog rather
+        // than as distance. The colour below tone-maps to roughly what the
+        // dome renders just above the horizon, and the range starts past the
+        // property line so the site itself is never touched.
+        scene.fog = new THREE.Fog(new THREE.Color('#c3d4e8'), 75, 215);
         camera.lookAt(0, 3, -2);
         gl.domElement.tabIndex = 0;
         gl.domElement.setAttribute('aria-label', 'Interactive property model. Drag to orbit, arrow keys to rotate.');

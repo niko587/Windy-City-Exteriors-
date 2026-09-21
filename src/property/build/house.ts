@@ -16,7 +16,8 @@
 
 import * as THREE from 'three';
 import { box, boxFrom, cyl, wallGeometry, type Opening } from '../lib/geo';
-import { fbm3, mulberry32 } from '../lib/noise';
+import { mulberry32 } from '../lib/noise';
+import { LEAF_TILES } from '../materials/foliage';
 import {
   Parts,
   downspout,
@@ -108,23 +109,6 @@ function elevation(target: Parts, e: Elevation): void {
   });
 }
 
-/** Displaced icosahedron used for shrubs and tree canopies. */
-function blob(r: number, detail: number, seed: number, squash = 1, amp = 0.28): THREE.BufferGeometry {
-  const g = new THREE.IcosahedronGeometry(r, detail);
-  const pos = g.attributes.position as THREE.BufferAttribute;
-  for (let i = 0; i < pos.count; i++) {
-    const x = pos.getX(i);
-    const y = pos.getY(i);
-    const z = pos.getZ(i);
-    const n = fbm3(x * 1.7 + seed, y * 1.7 + seed, z * 1.7 + seed, 3);
-    const k = 1 + (n - 0.5) * amp * 2;
-    pos.setXYZ(i, x * k, y * k * squash, z * k);
-  }
-  g.computeVertexNormals();
-  blankUv(g);
-  return g;
-}
-
 /** Merging needs matching attributes; primitives without UVs get empty ones. */
 function blankUv(g: THREE.BufferGeometry): THREE.BufferGeometry {
   g.deleteAttribute('uv');
@@ -134,23 +118,105 @@ function blankUv(g: THREE.BufferGeometry): THREE.BufferGeometry {
 }
 
 /**
- * A shrub is a mass, not a ball. One displaced icosahedron reads as exactly
- * what it is from ten metres away; three overlapping lobes at different
- * heights break the silhouette, which is the only part of a shrub anyone
- * actually looks at, for about the same number of triangles.
+ * A cluster of leaf cards.
+ *
+ * Each card is a quad carrying one tile of the leaf atlas, turned to a random
+ * attitude and placed on a squashed sphere around the centre. Two details do
+ * the work:
+ *
+ * The **normals are spherical**, taken from the cluster centre rather than
+ * from the face. A flat quad lit by its own normal is a flat quad, and forty
+ * of them at forty angles is a glitter ball. Pointing the normals outward
+ * makes the whole cluster shade as one round mass while its edge stays cut.
+ *
+ * The cards are spread with a bias toward the outside, because that is where
+ * the silhouette is and the silhouette is the whole point.
+ */
+function leafCluster(
+  p: Parts,
+  key: 'shrub' | 'foliage',
+  centre: [number, number, number],
+  radius: number,
+  cards: number,
+  seed: number,
+  squash = 1,
+): void {
+  const rnd = mulberry32(seed * 7919 + 13);
+  const [cx, cy, cz] = centre;
+  const tile = 1 / LEAF_TILES;
+
+  for (let i = 0; i < cards; i++) {
+    const u = rnd() * 2 - 1;
+    const phi = rnd() * Math.PI * 2;
+    const rho = Math.sqrt(1 - u * u);
+    const spread = 0.3 + Math.pow(rnd(), 0.55) * 0.7;
+    const dx = Math.cos(phi) * rho * radius * spread;
+    const dy = u * radius * squash * spread;
+    const dz = Math.sin(phi) * rho * radius * spread;
+
+    const size = radius * (0.72 + rnd() * 0.5);
+    const g = new THREE.PlaneGeometry(size, size);
+
+    // One of the four atlas tiles, flipped at random so eight readings come
+    // out of four drawings.
+    const tx = Math.floor(rnd() * LEAF_TILES);
+    const ty = Math.floor(rnd() * LEAF_TILES);
+    const flip = rnd() < 0.5;
+    const uv = g.attributes.uv as THREE.BufferAttribute;
+    for (let v = 0; v < uv.count; v++) {
+      const su = flip ? 1 - uv.getX(v) : uv.getX(v);
+      uv.setXY(v, (tx + su) * tile, (ty + uv.getY(v)) * tile);
+    }
+
+    g.rotateX(rnd() * Math.PI * 2);
+    g.rotateY(rnd() * Math.PI * 2);
+    g.rotateZ(rnd() * Math.PI * 2);
+    g.translate(cx + dx, cy + dy, cz + dz);
+
+    // Spherical normals, from the centre of the cluster outward, tipped a
+    // third of the way toward the sky. A leaf scatters light rather than
+    // reflecting it off one face, so a purely radial normal makes the sunlit
+    // side glare and the shaded side go black — two plants, not one.
+    const pos = g.attributes.position as THREE.BufferAttribute;
+    const nrm = g.attributes.normal as THREE.BufferAttribute;
+    for (let v = 0; v < pos.count; v++) {
+      const nx = pos.getX(v) - cx;
+      const ny = (pos.getY(v) - cy) / Math.max(squash, 0.2);
+      const nz = pos.getZ(v) - cz;
+      const len = Math.hypot(nx, ny, nz) || 1;
+      const ux = nx / len;
+      const uy = ny / len + 0.5;
+      const uz = nz / len;
+      const l2 = Math.hypot(ux, uy, uz) || 1;
+      nrm.setXYZ(v, ux / l2, uy / l2, uz / l2);
+    }
+
+    p.add(key, g);
+  }
+}
+
+/**
+ * A shrub: three overlapping clusters of cards at different heights, so the
+ * outline is broken both by the leaves and by the masses they sit in.
  */
 function shrub(p: Parts, x: number, z: number, r: number, seed: number): void {
   const rnd = mulberry32(seed * 37 + 11);
   const lobes: [number, number, number, number][] = [
-    [0, r * 0.7, 0, 0.92],
-    [r * 0.46, r * 1.06, r * 0.2, 0.66],
-    [-r * 0.38, r * 0.95, -r * 0.26, 0.58],
+    [0, r * 0.62, 0, 0.94],
+    [r * 0.44, r * 0.98, r * 0.2, 0.68],
+    [-r * 0.36, r * 0.88, -r * 0.26, 0.6],
   ];
   for (let i = 0; i < lobes.length; i++) {
     const [lx, ly, lz, k] = lobes[i];
-    const g = blob(r * k, 1, seed + i * 13, 0.78 + rnd() * 0.18, 0.36);
-    g.translate(x + lx + (rnd() - 0.5) * r * 0.14, ly, z + lz + (rnd() - 0.5) * r * 0.14);
-    p.add('shrub', g);
+    leafCluster(
+      p,
+      'shrub',
+      [x + lx + (rnd() - 0.5) * r * 0.14, ly, z + lz + (rnd() - 0.5) * r * 0.14],
+      r * k,
+      i === 0 ? 26 : 16,
+      seed + i * 13,
+      0.82 + rnd() * 0.16,
+    );
   }
 }
 
@@ -172,16 +238,23 @@ function tree(p: Parts, x: number, z: number, scale: number, seed: number): void
     );
   }
 
-  // Several smaller lobes rather than a few large ones: at this scale a big
-  // displaced sphere reads as a blob, not as a canopy.
+  // Several smaller masses rather than one large one: a canopy is a handful
+  // of clumps hanging off branches, and the gaps between them are as much of
+  // the read as the leaves are.
   const lobes = 7;
   for (let i = 0; i < lobes; i++) {
     const a = (i / lobes) * Math.PI * 2 + rnd();
     const rr = (0.62 + rnd() * 0.34) * scale;
     const d = (0.5 + rnd() * 0.62) * scale;
-    const g = blob(rr, 1, seed + i * 31, 0.86, 0.34);
-    g.translate(x + Math.cos(a) * d, h * (1.0 + rnd() * 0.36), z + Math.sin(a) * d);
-    p.add('foliage', g);
+    leafCluster(
+      p,
+      'foliage',
+      [x + Math.cos(a) * d, h * (1.0 + rnd() * 0.36), z + Math.sin(a) * d],
+      rr,
+      16,
+      seed + i * 31,
+      0.88,
+    );
   }
 }
 
@@ -687,12 +760,22 @@ export function buildProperty(): PropertyBuild {
       const trunk = 2.2 + rnd() * 1.3;
       P.add('bark', blankUv(cyl(0.26, 0.4, trunk * 2, 5, { at: [x, trunk, z] })));
       for (let l = 0; l < 3; l++) {
-        // Detail 1 rather than 0: a bare icosahedron keeps its facets even
-        // under heavy fog, and one faceted lump on the horizon is worse than
-        // no treeline at all. Eighty faces at this size is nothing.
-        const g = blob(r * (0.68 + rnd() * 0.4), 1, 900 + i * 7 + l, 0.84, 0.34);
-        g.translate(x + (rnd() - 0.5) * r * 0.9, trunk * 1.35 + r * 0.55 + (rnd() - 0.5) * r * 0.4, z + (rnd() - 0.5) * r * 0.9);
-        P.add('foliage', g);
+        // Cards here too, at a third the density. Nothing at this distance is
+        // read as a leaf, but a horizon of closed convex lumps is exactly as
+        // wrong as a garden of them.
+        leafCluster(
+          P,
+          'foliage',
+          [
+            x + (rnd() - 0.5) * r * 0.9,
+            trunk * 1.35 + r * 0.55 + (rnd() - 0.5) * r * 0.4,
+            z + (rnd() - 0.5) * r * 0.9,
+          ],
+          r * (0.68 + rnd() * 0.4),
+          5,
+          900 + i * 7 + l,
+          0.86,
+        );
       }
     }
   }

@@ -8,7 +8,7 @@
  */
 
 import * as THREE from 'three';
-import { fbm3, mulberry32, noise3, tileFbm2, tileNoise2 } from '../lib/noise';
+import { mulberry32, tileFbm2, tileNoise2 } from '../lib/noise';
 
 type Rgb = [number, number, number];
 
@@ -111,23 +111,33 @@ const COURSES = 6;
  * courses read at the distance the overview camera sits at.
  */
 function lapProfile(t: number): { slope: number; shade: number } {
-  if (t < 0.035) return { slope: -1.15, shade: 0.58 }; // underside of the butt edge
-  if (t < 0.075) return { slope: 0.55, shade: 0.78 }; // shadowed wall just below the lap
-  const k = (t - 0.075) / 0.925;
-  return { slope: -0.1 - 0.16 * k, shade: 0.94 + 0.06 * k };
+  // The line under a butt edge is nearly black on a real wall: the board
+  // above it stands 20 mm proud and the sky cannot reach underneath. The old
+  // 0.58 was a pencil line, and a pencil line is what made the elevation
+  // read as a drawing rather than as boards.
+  if (t < 0.028) return { slope: -1.35, shade: 0.15 };
+  if (t < 0.105) {
+    const k = (t - 0.028) / 0.077;
+    return { slope: 0.62 - 0.5 * k, shade: 0.26 + 0.64 * k * k };
+  }
+  const k = (t - 0.105) / 0.895;
+  return { slope: -0.1 - 0.16 * k, shade: 0.92 + 0.08 * k };
 }
 
 /** Dutch lap: the same butt edge with a cove milled along the top third. */
 function dutchProfile(t: number): { slope: number; shade: number } {
-  if (t < 0.04) return { slope: -1.25, shade: 0.54 };
-  if (t < 0.08) return { slope: 0.6, shade: 0.76 };
+  if (t < 0.032) return { slope: -1.4, shade: 0.13 };
+  if (t < 0.105) {
+    const k = (t - 0.032) / 0.073;
+    return { slope: 0.66 - 0.5 * k, shade: 0.24 + 0.66 * k * k };
+  }
   if (t > 0.66) {
     // The cove: a shallow concave sweep that catches its own shadow.
     const k = (t - 0.66) / 0.34;
-    return { slope: 0.34 - 1.5 * k, shade: 0.99 - 0.24 * k * k };
+    return { slope: 0.34 - 1.5 * k, shade: 0.99 - 0.28 * k * k };
   }
-  const k = (t - 0.08) / 0.58;
-  return { slope: -0.06 - 0.06 * k, shade: 0.93 + 0.06 * k };
+  const k = (t - 0.105) / 0.555;
+  return { slope: -0.06 - 0.06 * k, shade: 0.91 + 0.08 * k };
 }
 
 /**
@@ -182,7 +192,10 @@ export function sidingMaps(profile: SidingProfile = 'lap'): {
     // face is read rather than glanced at.
     const s = surface(512);
     const rnd = mulberry32(1337);
-    const boardTone: number[] = Array.from({ length: COURSES * 3 }, () => 0.965 + rnd() * 0.05);
+    // One value across a whole elevation is the tell. Cladding is run in
+    // batches, weathers by exposure and is never one colour board to board,
+    // so the spread here is three times what it was.
+    const boardTone: number[] = Array.from({ length: 48 }, () => 0.9 + rnd() * 0.15);
     const shakeTone: number[] = Array.from({ length: 64 }, () => 0.9 + rnd() * 0.14);
 
     for (let y = 0; y < s.size; y++) {
@@ -199,7 +212,9 @@ export function sidingMaps(profile: SidingProfile = 'lap'): {
         let value: number;
 
         if (horizontal) {
-          const seam = boardTone[(course * 3 + Math.floor(u * 3)) % boardTone.length];
+          // Keyed to the butt-joint run the texel is actually in, so the
+          // tone changes where the boards change rather than on its own grid.
+          const seam = boardTone[Math.abs(Math.floor(u * 2.4 + course * 0.37) * 7 + course * 5) % boardTone.length];
           value = horizontal.shade * seam + grain * 0.045 + fibre * 0.02;
           // Butt joints every ~2.4 m read as a hairline, not a gap.
           const joint = Math.abs(((u * 2.4 + course * 0.37) % 1) - 0.5);
@@ -298,36 +313,92 @@ export function wearMap(): THREE.Texture {
 }
 
 /* -------------------------------------------------------------------------
-   Architectural shingles — 1 m tile, five courses of staggered tabs.
+   Architectural shingles.
+
+   A roof is the largest single surface in every composition, so a roof that
+   repeats is the fastest way to lose the whole model. Five courses of tabs
+   in a 1 m tile, but the offsets are drawn per course rather than alternating
+   0 and a half, the tab widths vary, the tone is drawn per tab out of a wide
+   blend, and a handful of tabs are lifted — their butt caught by the sky with
+   a hard shadow under them. That last one is what a real weathered roof has
+   and a rendered one never does.
    ------------------------------------------------------------------------- */
 
 export function shingleMaps(): { map: THREE.Texture; normalMap: THREE.Texture } {
   const rows = 5;
-  const tabs = 3;
+
+  interface Course {
+    /** Cumulative tab starts across the course, and the offset it is laid at. */
+    cuts: number[];
+    offset: number;
+    /** Tabs lifted at the butt; keyed by tab index. */
+    lifted: Set<number>;
+  }
+
+  /** Laid once per course rather than per texel. */
+  const courses: Course[] = Array.from({ length: rows }, (_, row) => {
+    const rnd = mulberry32(row * 4813 + 91);
+    const n = 3 + (row % 2);
+    const widths = Array.from({ length: n }, () => 0.78 + rnd() * 0.44);
+    const total = widths.reduce((a, b) => a + b, 0);
+    const cuts: number[] = [];
+    let acc = 0;
+    for (const w of widths) {
+      cuts.push(acc);
+      acc += w / total;
+    }
+    const lifted = new Set<number>();
+    for (let i = 0; i < n; i++) if (rnd() > 0.78) lifted.add(i);
+    return { cuts, offset: rnd(), lifted };
+  });
+
+  function tabAt(u: number, row: number): { tab: number; tu: number; width: number; lifted: boolean } {
+    const c = courses[row];
+    const uu = (((u + c.offset) % 1) + 1) % 1;
+    for (let i = c.cuts.length - 1; i >= 0; i--) {
+      if (uu >= c.cuts[i]) {
+        const next = i + 1 < c.cuts.length ? c.cuts[i + 1] : 1;
+        const w = next - c.cuts[i];
+        return { tab: i, tu: (uu - c.cuts[i]) / w, width: w, lifted: c.lifted.has(i) };
+      }
+    }
+    return { tab: 0, tu: 0.5, width: 1, lifted: false };
+  }
 
   const map = memo('shingle-albedo', () => {
-    // The roof is never closer than about ten metres and is read at a steep
-    // rake, where anisotropic filtering is doing the work, not texel count.
     const s = surface(256);
     const rnd = mulberry32(90210);
-    const tone: number[] = Array.from({ length: rows * tabs * 4 }, () => 0.78 + rnd() * 0.3);
+    // An architectural shingle is a blend by design — the granules are mixed
+    // so a roof never reads as one grey. Widened hard from the old ±15 %.
+    const tone: number[] = Array.from({ length: 64 }, () => 0.62 + rnd() * 0.56);
     for (let y = 0; y < s.size; y++) {
       const v = 1 - y / s.size;
-      const row = Math.floor(v * rows);
+      const row = Math.min(rows - 1, Math.floor(v * rows));
       const t = v * rows - row;
       for (let x = 0; x < s.size; x++) {
-        const offset = row % 2 === 0 ? 0 : 0.5 / tabs;
-        const u = (x / s.size + offset) % 1;
-        const tab = Math.floor(u * tabs);
-        const tu = u * tabs - tab;
-        const key = tone[(row * tabs + tab) % tone.length];
-        // Granules.
-        const g = tileFbm2(x / 5, y / 5, 102, 102, 2, 17);
-        let value = 0.62 * key + g * 0.2;
-        if (t < 0.11) value *= 0.62; // keyway shadow under each course
-        if (tu < 0.018 || tu > 0.982) value *= 0.6; // tab slots
+        const u = x / s.size;
+        const c = tabAt(u, row);
+        const key = tone[Math.abs(row * 13 + c.tab * 29) % tone.length];
+        // Granules: fine, and part of the relief as well as the colour.
+        const g = tileFbm2(x / 4, y / 4, 64, 64, 2, 17);
+        const grit = tileNoise2(x / 1.6, y / 1.6, 160, 160, 43);
+        let value = 0.6 * key + (g - 0.5) * 0.24 + (grit - 0.5) * 0.1;
+
+        // The keyway: the course above lies on top of this one, and the line
+        // where it lands is the darkest thing on a roof.
+        if (t < 0.14) value *= 0.3 + 0.7 * smooth(0.0, 0.14, t);
+        // Tab slots, cut right through.
+        const slot = Math.min(c.tu, 1 - c.tu) * c.width;
+        if (slot < 0.004) value *= 0.34;
+        else if (slot < 0.012) value *= 0.64 + 0.36 * smooth(0.004, 0.012, slot);
+        // A lifted tab catches the sky along its butt and throws a hard line
+        // under itself.
+        if (c.lifted) {
+          if (t > 0.1 && t < 0.2) value *= 1 + 0.4 * (1 - Math.abs(t - 0.15) / 0.05);
+          if (t < 0.1) value *= 0.7;
+        }
         value = clamp01(value);
-        writeRgb(s.data, (y * s.size + x) * 4, [value * 246, value * 244, value * 240]);
+        writeRgb(s.data, (y * s.size + x) * 4, [value * 248, value * 245, value * 239]);
       }
     }
     return toTexture(s, THREE.SRGBColorSpace);
@@ -337,13 +408,19 @@ export function shingleMaps(): { map: THREE.Texture; normalMap: THREE.Texture } 
     const s = surface(256);
     for (let y = 0; y < s.size; y++) {
       const v = 1 - y / s.size;
-      const row = Math.floor(v * rows);
+      const row = Math.min(rows - 1, Math.floor(v * rows));
       const t = v * rows - row;
-      const slope = t < 0.1 ? -0.9 : -0.06;
       for (let x = 0; x < s.size; x++) {
-        const gx = (tileNoise2(x / 2.2, y / 2.2, 116, 116, 4) - 0.5) * 0.5;
-        const gy = (tileNoise2(x / 2.2 + 40, y / 2.2, 116, 116, 4) - 0.5) * 0.5;
-        writeNormal(s.data, (y * s.size + x) * 4, gx, slope + gy, 2.2);
+        const u = x / s.size;
+        const c = tabAt(u, row);
+        const gx = (tileNoise2(x / 2.2, y / 2.2, 116, 116, 4) - 0.5) * 0.55;
+        const gy = (tileNoise2(x / 2.2 + 40, y / 2.2, 116, 116, 4) - 0.5) * 0.55;
+        // The butt of the course stands proud; a lifted tab stands prouder.
+        let slope = t < 0.12 ? -1.1 - (c.lifted ? 0.8 : 0) : -0.05;
+        if (c.lifted && t > 0.12 && t < 0.22) slope = 0.5;
+        const slot = Math.min(c.tu, 1 - c.tu) * c.width;
+        const nx = slot < 0.006 ? (c.tu < 0.5 ? -0.9 : 0.9) : 0;
+        writeNormal(s.data, (y * s.size + x) * 4, gx + nx, slope + gy, 2.2);
       }
     }
     return toTexture(s, THREE.NoColorSpace);
@@ -635,11 +712,18 @@ export function lawnMaps(): { map: THREE.Texture; normalMap: THREE.Texture } {
         const blade = tileNoise2(u * 150, v * 150, 150, 150, 71);
         const mow = 0.5 + 0.5 * Math.sin(v * Math.PI * 4);
         const value = clamp01(0.64 + (clump - 0.5) * 0.44 + (blade - 0.5) * 0.24 + mow * 0.08);
-        const i = (y * s.size + x) * 4;
         // Turf is a far brighter surface than the old tile allowed: the map
         // and the material colour multiply, and between them they were
         // landing the lawn near three per cent albedo, which is asphalt.
-        writeRgb(s.data, i, [value * 154, value * 176, value * 110]);
+        // Straw: no lawn is one green, and the thin patches are what stop a
+        // hundred metres of it reading as a sheet of paper.
+        const dry = smooth(0.58, 0.86, tileFbm2(u * 3, v * 3, 3, 3, 3, 203));
+        const i = (y * s.size + x) * 4;
+        writeRgb(s.data, i, [
+          value * (154 + dry * 52),
+          value * (176 + dry * 14),
+          value * (110 + dry * 22),
+        ]);
       }
     }
     return toTexture(s, THREE.SRGBColorSpace);
@@ -664,16 +748,34 @@ export function lawnMaps(): { map: THREE.Texture; normalMap: THREE.Texture } {
    Mulch bed and decking.
    ------------------------------------------------------------------------- */
 
+/**
+ * Shredded hardwood mulch.
+ *
+ * The old tile landed near black, which reads as a hole cut in the lawn
+ * rather than as a bed. Real mulch is a mid dark brown that catches a lot of
+ * light — the chips are flat facets lying every which way and half of them
+ * are pointed at the sky — so this is roughly twice as bright, with the
+ * chips drawn as discrete lit shards instead of a soft cloud of noise.
+ */
 export function mulchMap(): THREE.Texture {
   return memo('mulch-albedo', () => {
-    const s = surface(128);
+    const s = surface(192);
     for (let y = 0; y < s.size; y++) {
       const v = 1 - y / s.size;
       for (let x = 0; x < s.size; x++) {
         const u = x / s.size;
-        const chip = tileFbm2(u * 22, v * 14, 22, 14, 3, 88);
-        const value = clamp01(0.4 + (chip - 0.5) * 0.7);
-        writeRgb(s.data, (y * s.size + x) * 4, [value * 122, value * 84, value * 62]);
+        // Two chip fields at different angles, so the shreds are not all
+        // lying the same way.
+        const a = tileFbm2(u * 26 + v * 7, v * 15, 33, 15, 2, 88);
+        const b = tileFbm2(u * 11 - v * 18, v * 29, 29, 29, 2, 141);
+        const chip = Math.max(a, b);
+        const bed = tileFbm2(u * 4, v * 4, 4, 4, 3, 12);
+        let value = 0.72 + (bed - 0.5) * 0.3;
+        // The lit face of a chip, and the gap it falls into.
+        value += smooth(0.56, 0.78, chip) * 0.3;
+        value -= smooth(0.62, 0.9, 1 - chip) * 0.34;
+        value = clamp01(value);
+        writeRgb(s.data, (y * s.size + x) * 4, [value * 168, value * 126, value * 92]);
       }
     }
     return toTexture(s, THREE.SRGBColorSpace);
@@ -760,116 +862,206 @@ export function deckMaps(): { map: THREE.Texture; normalMap: THREE.Texture } {
 }
 
 /* -------------------------------------------------------------------------
-   Studio environment — the equirect behind every reflection in the scene.
+   The sky.
 
-   It is the only thing glass, gutters and hardware have to look at, so a flat
-   two-stop gradient is what made the glazing read as cardboard: every pane
-   reflected the same warm band whatever angle it sat at. This version keeps
-   the studio palette of the backdrop but gives the reflection somewhere to
-   travel — a bright haze line at the horizon, broken cloud above it, and a
-   ground half that is lawn-and-driveway dark rather than another wash of
-   cream. Direction vectors drive it rather than pixel coordinates, so the
-   poles and the seam close on themselves.
+   One sky, in one place, used three ways: it is the dome behind the house,
+   it is the image-based light every material is lit by, and it is what the
+   glazing reflects. Those were three separate approximations that disagreed
+   with each other, which is a large part of why the model read as a drawing
+   — the windows showed a warm studio wash while the backdrop showed a cool
+   one, and neither matched the light rig.
+
+   So the sky is written once, in GLSL, and the environment map is made by
+   prefiltering the same material rather than by a second implementation of
+   the same maths on the CPU. Radiance comes out linear and unbounded: the
+   disc of the sun is two orders of magnitude above the sky around it, which
+   is what gives metal and glass a glint instead of a pale smear, and the
+   tone mapper is left to deal with the top end.
    ------------------------------------------------------------------------- */
 
-/** Matches the key light in `PropertyScene`, so the hot spot lands where the sun is. */
-const SUN_DIR: Rgb = (() => {
-  const len = Math.hypot(15.5, 19, 14.5);
-  return [15.5 / len, 19 / len, 14.5 / len];
-})();
+/** Matches the key light in `PropertyScene`; the sun must be in one place. */
+export const SUN_DIRECTION = new THREE.Vector3(15.5, 19, 14.5).normalize();
 
+/**
+ * Uniforms for `SKY_GLSL`. A fresh object per material, because three writes
+ * through these and two materials must not share one set.
+ *
+ * `uStageMix` and `uStageColor` exist for the wall stage: the daylight drains
+ * to a flat studio colour as the assembly takes over, and doing that here
+ * keeps the dome and the reflections draining together.
+ */
+export function skyUniforms(): Record<string, THREE.IUniform> {
+  return {
+    uSunDirection: { value: SUN_DIRECTION.clone() },
+    uSunColor: { value: new THREE.Color('#fff4e2').convertSRGBToLinear() },
+    uSkyZenith: { value: new THREE.Color('#5c8dcd').convertSRGBToLinear() },
+    // Deepened from #dfe8f2. The camera stands on the lawn, so the whole
+    // visible band of sky is within ~20 degrees of the horizon; at the old
+    // value that band tone-mapped to milk and the frame read as fog.
+    uSkyHaze: { value: new THREE.Color('#c9d8ea').convertSRGBToLinear() },
+    // The lower hemisphere is a sunlit lot, and it was being given the
+    // radiance of a lawn at dusk. It feeds two things that both looked wrong
+    // for the same reason: the bounce in the environment map, which is what
+    // lights the underside of every eave and soffit, and the reflection in
+    // the glass, which on a camera standing above the sills is the ground
+    // almost everywhere on the elevation. Lifted and greened; the far tone is
+    // where the drive, the walk and the neighbours average out.
+    uSkyGroundNear: { value: new THREE.Color('#b9bea2').convertSRGBToLinear() },
+    uSkyGroundFar: { value: new THREE.Color('#93967f').convertSRGBToLinear() },
+    uSkyGain: { value: 1.8 },
+    uStageColor: { value: new THREE.Color('#0a1b30').convertSRGBToLinear() },
+    uStageMix: { value: 0 },
+  };
+}
+
+/**
+ * `vec3 wceSkyRadiance(vec3 direction)` — linear radiance looking that way.
+ *
+ * Above the horizon it is a Rayleigh-shaped gradient with forward scatter on
+ * the sun's side; the cumulus is projected onto a plane overhead so the
+ * banding compresses toward the horizon the way real cloud does, and each
+ * cloud is shaded by comparing its density against a sample one step toward
+ * the sun — thin in that direction means the face is turned into the light,
+ * which is what gives lit tops and grey bases without a second noise field.
+ * Below the horizon it is the lot and the street, because that is what a
+ * window catches from any camera standing higher than the sill.
+ */
+export const SKY_GLSL = `
+uniform vec3 uSunDirection;
+uniform vec3 uSunColor;
+uniform vec3 uSkyZenith;
+uniform vec3 uSkyHaze;
+uniform vec3 uSkyGroundNear;
+uniform vec3 uSkyGroundFar;
+uniform float uSkyGain;
+uniform vec3 uStageColor;
+uniform float uStageMix;
+
+float wceSkyHash(vec2 p) {
+  vec3 q = fract(vec3(p.xyx) * 0.1031);
+  q += dot(q, q.yzx + 33.33);
+  return fract((q.x + q.y) * q.z);
+}
+
+float wceSkyNoise(vec2 p) {
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  f = f * f * (3.0 - 2.0 * f);
+  return mix(
+    mix(wceSkyHash(i), wceSkyHash(i + vec2(1.0, 0.0)), f.x),
+    mix(wceSkyHash(i + vec2(0.0, 1.0)), wceSkyHash(i + vec2(1.0, 1.0)), f.x),
+    f.y);
+}
+
+float wceSkyFbm(vec2 p) {
+  float sum = 0.0;
+  float amp = 0.52;
+  for (int i = 0; i < 4; i++) {
+    sum += amp * wceSkyNoise(p);
+    p = p * 2.07 + 11.3;
+    amp *= 0.5;
+  }
+  return sum;
+}
+
+vec3 wceSkyRadiance(vec3 d) {
+  float h = d.y;
+  float sd = dot(d, uSunDirection);
+
+  // Exponential, not a power of (1 - h). A power curve is flat where it
+  // matters: at ten degrees above the horizon 1 - h is still 0.98, so every
+  // exponent left the whole low sky sitting on the haze colour. Real sky
+  // reaches its zenith blue within about twenty degrees, which is what this
+  // falloff does — and twenty degrees is the entire band a camera standing on
+  // the lawn can see.
+  float grad = exp(-clamp(h, 0.0, 1.0) * 6.0);
+  vec3 col = mix(uSkyZenith, uSkyHaze, grad);
+  // Mie forward scatter: the sun's half of the sky is warmer and paler, and
+  // a sky that is the same blue all the way round is the flattest tell there is.
+  col += uSunColor * (0.14 * pow(max(sd, 0.0), 3.0) * grad);
+
+  // The lot and the street. Broken, not a ramp — a window pointed down finds
+  // lawn, drive and the neighbours, never a clean gradient.
+  vec3 ground = mix(uSkyGroundNear, uSkyGroundFar, pow(clamp(-h * 3.2, 0.0, 1.0), 0.55));
+  ground *= 0.78 + 0.44 * wceSkyNoise(d.xz / max(-h, 0.3) * 0.9);
+  col = mix(col, ground, smoothstep(0.0, -0.03, h));
+
+  // The haze line. Two gradients meeting at an edge look drawn; a band a
+  // couple of degrees thick looks lit.
+  col += uSkyHaze * 0.18 * exp(-abs(h) * 26.0);
+
+  float deck = smoothstep(0.02, 0.2, h);
+  if (deck > 0.0) {
+    vec2 p = d.xz / max(h, 0.05) * 0.4;
+    float dens = wceSkyFbm(p);
+    float lean = dens - wceSkyFbm(p + uSunDirection.xz * 0.6);
+    vec3 cloud = mix(vec3(0.44, 0.47, 0.55), vec3(1.5, 1.47, 1.4), smoothstep(-0.07, 0.15, lean));
+    col = mix(col, cloud, smoothstep(0.47, 0.8, dens) * deck * 0.94);
+  }
+
+  // The sun as a disc with an aureole around it, not a smear. Its radiance is
+  // far above the sky's on purpose: that ratio is the glint.
+  float ang = acos(clamp(sd, -1.0, 1.0));
+  col += uSunColor * (
+    (1.0 - smoothstep(0.0042, 0.0058, ang)) * 90.0 +
+    exp(-ang * 30.0) * 1.2 +
+    exp(-ang * 3.2) * 0.07);
+
+  return mix(col * uSkyGain, uStageColor, uStageMix);
+}`;
+
+/**
+ * The dome behind the house. `PropertyScene` puts this on its backdrop sphere
+ * so the visible sky and the reflected sky are the same shader; prefiltering
+ * this same material is where `studioEnvironment` gets the environment map.
+ */
+export function skyDomeMaterial(): THREE.ShaderMaterial {
+  return new THREE.ShaderMaterial({
+    side: THREE.BackSide,
+    depthWrite: false,
+    fog: false,
+    uniforms: skyUniforms(),
+    vertexShader: `
+      varying vec3 vWceSkyDir;
+      void main() {
+        vWceSkyDir = position;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }`,
+    fragmentShader: `
+      ${SKY_GLSL}
+      varying vec3 vWceSkyDir;
+      #include <tonemapping_pars_fragment>
+      void main() {
+        gl_FragColor = vec4(wceSkyRadiance(normalize(vWceSkyDir)), 1.0);
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
+      }`,
+  });
+}
+
+/**
+ * The environment map, prefiltered straight off the sky material.
+ *
+ * Generating it from the shader rather than from a second CPU implementation
+ * is the whole point: there is no way for the light the house is lit by to
+ * drift away from the sky it is standing under.
+ */
 export function studioEnvironment(renderer: THREE.WebGLRenderer): THREE.Texture {
   const key = 'env';
   const hit = cache.get(key);
   if (hit) return hit;
 
-  const w = 384;
-  const h = 192;
-  const data = new Uint8ClampedArray(w * h * 4);
-  const zenith: Rgb = [158, 184, 220];
-  const sky: Rgb = [201, 217, 240];
-  const horizon: Rgb = [250, 244, 233];
-  const nearGround: Rgb = [170, 163, 144];
-  const ground: Rgb = [104, 101, 88];
-
-  for (let y = 0; y < h; y++) {
-    // Polar angle, so the vertical spacing is angular rather than linear and
-    // the horizon sits where a reflected ray actually finds it.
-    const theta = ((y + 0.5) / h) * Math.PI;
-    const dy = Math.cos(theta);
-    const st = Math.sin(theta);
-    for (let x = 0; x < w; x++) {
-      const phi = ((x + 0.5) / w) * Math.PI * 2;
-      const dx = st * Math.sin(phi);
-      const dz = st * Math.cos(phi);
-      let c: Rgb;
-
-      if (dy >= 0) {
-        const k = Math.pow(clamp01(dy * 1.5), 0.62);
-        c = [
-          horizon[0] + (zenith[0] - horizon[0]) * k,
-          horizon[1] + (zenith[1] - horizon[1]) * k,
-          horizon[2] + (zenith[2] - horizon[2]) * k,
-        ];
-        // Cloud, projected onto a plane overhead so the banding compresses
-        // toward the horizon the way a real deck of cloud does. Without this
-        // the upper half of every pane is a dead gradient.
-        const p = 1 / Math.max(dy, 0.1);
-        const cloud =
-          fbm3(dx * p * 0.55, dz * p * 0.55, 3.1, 3) * 0.66 + noise3(dx * p * 1.9, dz * p * 1.9, 8.4) * 0.34;
-        const cover = smooth(0.44, 0.86, cloud) * smooth(0.0, 0.26, dy);
-        c = [
-          c[0] + (sky[0] - c[0] + 34) * cover * 0.6,
-          c[1] + (sky[1] - c[1] + 32) * cover * 0.6,
-          c[2] + (sky[2] - c[2] + 24) * cover * 0.6,
-        ];
-      } else {
-        // Just under the horizon a window finds the hazy far side of the
-        // street; steeper down it finds lawn and drive, which are far darker
-        // than the backdrop and are what keeps low glazing from glowing.
-        const k = Math.pow(clamp01(-dy * 2.4), 0.55);
-        const near: Rgb = [
-          horizon[0] + (nearGround[0] - horizon[0]) * Math.min(1, k * 2.4),
-          horizon[1] + (nearGround[1] - horizon[1]) * Math.min(1, k * 2.4),
-          horizon[2] + (nearGround[2] - horizon[2]) * Math.min(1, k * 2.4),
-        ];
-        c = [
-          near[0] + (ground[0] - near[0]) * k,
-          near[1] + (ground[1] - near[1]) * k,
-          near[2] + (ground[2] - near[2]) * k,
-        ];
-      }
-
-      // The haze line itself. A horizon that is a hard edge between two
-      // gradients looks drawn; a band a couple of degrees thick looks lit.
-      const band = Math.exp(-Math.abs(dy) * 22);
-      c = [c[0] + band * 22, c[1] + band * 19, c[2] + band * 13];
-
-      // A disc rather than a smear, so a pane turned into the sun gets a
-      // glint instead of a general warming.
-      const s = dx * SUN_DIR[0] + dy * SUN_DIR[1] + dz * SUN_DIR[2];
-      if (s > 0) {
-        const glint = Math.pow(s, 260) * 90 + Math.pow(s, 9) * 26;
-        c = [c[0] + glint, c[1] + glint * 0.9, c[2] + glint * 0.68];
-      }
-
-      const i = (y * w + x) * 4;
-      data[i] = c[0];
-      data[i + 1] = c[1];
-      data[i + 2] = c[2];
-      data[i + 3] = 255;
-    }
-  }
-
-  const src = new THREE.DataTexture(data, w, h, THREE.RGBAFormat);
-  src.mapping = THREE.EquirectangularReflectionMapping;
-  src.colorSpace = THREE.SRGBColorSpace;
-  src.needsUpdate = true;
+  const scene = new THREE.Scene();
+  const geometry = new THREE.SphereGeometry(1, 32, 16);
+  const material = skyDomeMaterial();
+  scene.add(new THREE.Mesh(geometry, material));
 
   const pmrem = new THREE.PMREMGenerator(renderer);
-  const env = pmrem.fromEquirectangular(src).texture;
+  const env = pmrem.fromScene(scene, 0, 0.1, 10).texture;
   pmrem.dispose();
-  src.dispose();
+  geometry.dispose();
+  material.dispose();
+
   env.name = key;
   cache.set(key, env);
   return env;

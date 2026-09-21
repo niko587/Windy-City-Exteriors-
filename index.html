@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f4efe6" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta
+      name="description"
+      content="Prototype: Windy City Exteriors — family owned exterior remodeling serving Lake Villa and Chicagoland. Siding, windows, doors, decks, gutters and selected interior work."
+    />
+    <link rel="icon" type="image/png" href="/brand/wce-mark.png" />
+    <title>Windy City Exteriors — Prototype</title>
+    <script>
+      /* Restores the path that 404.html encoded, before the app mounts, so a
+         refreshed or shared deep link shows the address the visitor expects. */
+      (function () {
+        var l = window.location;
+        if (l.search[1] === '/') {
+          var decoded = l.search
+            .slice(1)
+            .split('&')
+            .map(function (part) {
+              return part.replace(/~and~/g, '&');
+            })
+            .join('?');
+          window.history.replaceState(null, '', l.pathname.slice(0, -1) + decoded + l.hash);
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <noscript>
+      <p style="font-family: Georgia, serif; padding: 2rem; color: #0b2752">
+        Windy City Exteriors — call or text 224-629-8926 or email windycityexteriors@gmail.com. This prototype needs
+        JavaScript to show the interactive property.
+      </p>
+    </noscript>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

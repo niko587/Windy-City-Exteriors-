@@ -1,0 +1,1838 @@
+/* ---------------------------------------------------------------------------
+   The interface layer that sits over the property.
+   Hairlines, negative space, one red accent. No dashboard.
+   --------------------------------------------------------------------------- */
+
+.stage {
+  position: relative;
+  height: 100svh;
+  min-height: 620px;
+  max-height: 1080px;
+  overflow: hidden;
+  background: var(--porcelain);
+  isolation: isolate;
+}
+
+.stage__canvas {
+  position: absolute;
+  inset: 0;
+}
+
+.stage__canvas canvas {
+  display: block;
+  touch-action: none;
+}
+
+.stage__canvas canvas:focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: -4px;
+}
+
+/* Keeps the headline legible over the lawn without dimming the render. */
+.stage__scrim {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: min(56%, 720px);
+  pointer-events: none;
+  background: linear-gradient(
+    to right,
+    rgba(244, 239, 230, 0.96) 0%,
+    rgba(244, 239, 230, 0.86) 34%,
+    rgba(244, 239, 230, 0) 100%
+  );
+  opacity: 1;
+  transition: opacity var(--t-slow) var(--ease-out);
+}
+
+.stage[data-mode='focus'] .stage__scrim,
+.stage[data-mode='transform'] .stage__scrim,
+.stage[data-mode='explore'] .stage__scrim {
+  opacity: 0;
+}
+
+.stage__ui {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  display: grid;
+  /* minmax(0, …) or the scrolling rail's content width pushes the hero copy
+     off a 375px screen. */
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
+}
+
+.stage__ui > * {
+  pointer-events: none;
+}
+
+.stage__ui button,
+.stage__ui a,
+.stage__ui [data-interactive] {
+  pointer-events: auto;
+}
+
+/* The header sits over the render with nothing behind it; on the close
+   compositions the roof runs straight under the navigation. */
+.stage__sky {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 150px;
+  pointer-events: none;
+  background: linear-gradient(to bottom, rgba(244, 239, 230, 0.88) 0%, rgba(244, 239, 230, 0.52) 46%, rgba(244, 239, 230, 0) 100%);
+  opacity: 0;
+  transition: opacity var(--t-slow) var(--ease-out);
+}
+
+.stage[data-mode='focus'] .stage__sky,
+.stage[data-mode='transform'] .stage__sky,
+.stage[data-mode='explore'] .stage__sky {
+  opacity: 1;
+}
+
+/* Keeps the rail legible whatever the camera is looking at. */
+.stage__floor {
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 188px;
+  pointer-events: none;
+  /* Enough to carry the rail, not enough to dissolve the bottom of the house:
+     a scrim that reaches halfway up the wall washes the building to milk. */
+  background: linear-gradient(to top, rgba(244, 239, 230, 0.92) 0%, rgba(244, 239, 230, 0.46) 40%, rgba(244, 239, 230, 0) 88%);
+  transition: opacity var(--t-mid) var(--ease-out);
+}
+
+/* --- hero copy ------------------------------------------------------------ */
+
+.hero {
+  width: var(--shell);
+  margin-inline: auto;
+  align-self: center;
+  padding-top: var(--header-h);
+  max-width: none;
+}
+
+.hero__inner {
+  max-width: 560px;
+  display: grid;
+  gap: 24px;
+  transition:
+    opacity var(--t-slow) var(--ease-out),
+    transform var(--t-slow) var(--ease-out);
+}
+
+.stage[data-mode='focus'] .hero__inner,
+.stage[data-mode='transform'] .hero__inner,
+.stage[data-mode='explore'] .hero__inner {
+  opacity: 0;
+  transform: translateY(-14px);
+  pointer-events: none;
+}
+
+.hero__eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 10.5px;
+  font-weight: 620;
+  letter-spacing: 0.19em;
+  text-transform: uppercase;
+  color: var(--red);
+}
+
+.hero__eyebrow::after {
+  content: '';
+  flex: 1;
+  max-width: 96px;
+  height: 1px;
+  background: var(--red);
+  opacity: 0.55;
+}
+
+.hero h1 {
+  font-size: clamp(42px, 5.6vw, 82px);
+  line-height: 0.98;
+  letter-spacing: -0.032em;
+  font-variation-settings: 'SOFT' 0, 'WONK' 1, 'opsz' 144;
+  font-weight: 420;
+}
+
+.hero h1 span {
+  display: block;
+  overflow: hidden;
+  /* The mask has to clear the descenders of 'property.' */
+  padding-bottom: 0.1em;
+  margin-bottom: -0.1em;
+}
+
+.hero h1 span i {
+  display: block;
+  font-style: normal;
+  transform: translateY(102%);
+  animation: rise 900ms var(--ease-out) forwards;
+}
+
+.hero h1 span:nth-child(2) i {
+  animation-delay: 90ms;
+}
+
+.hero h1 span:nth-child(3) i {
+  animation-delay: 180ms;
+}
+
+@keyframes rise {
+  to {
+    transform: none;
+  }
+}
+
+.hero__lede {
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--slate);
+  max-width: 41ch;
+}
+
+.hero__actions {
+  display: flex;
+  align-items: center;
+  gap: 26px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+/* Circled-arrow primary, straight off the approved direction. */
+.discbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 16px;
+  color: var(--navy);
+}
+
+.discbtn__disc {
+  position: relative;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: 1px solid var(--line-strong);
+  display: grid;
+  place-items: center;
+  flex: none;
+  overflow: hidden;
+  transition: border-color var(--t-mid) var(--ease-out);
+}
+
+.discbtn__disc::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--navy);
+  transform: scale(0);
+  transition: transform var(--t-mid) var(--ease-out);
+}
+
+.discbtn__disc svg {
+  position: relative;
+  transition: transform var(--t-mid) var(--ease-out);
+}
+
+.discbtn:hover .discbtn__disc::before {
+  transform: scale(1);
+}
+
+.discbtn:hover .discbtn__disc {
+  border-color: var(--navy);
+  color: var(--porcelain);
+}
+
+.discbtn:hover .discbtn__disc svg {
+  transform: translateX(3px);
+}
+
+.discbtn__text {
+  display: grid;
+  gap: 3px;
+  text-align: left;
+}
+
+.discbtn__text b {
+  font-size: 14.5px;
+  font-weight: 580;
+}
+
+.discbtn__text span {
+  font-size: 11px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* --- drag cue ------------------------------------------------------------- */
+
+.dragcue {
+  position: absolute;
+  top: calc(var(--header-h) + 26px);
+  right: var(--gutter);
+  display: grid;
+  justify-items: center;
+  gap: 9px;
+  color: var(--muted);
+  font-size: 9.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-weight: 600;
+  opacity: 0;
+  animation: fade-in var(--t-slow) var(--ease-out) 1.5s forwards;
+  transition: opacity var(--t-mid) var(--ease-out);
+}
+
+.stage[data-manual='true'] .dragcue {
+  opacity: 0 !important;
+}
+
+@keyframes fade-in {
+  to {
+    opacity: 1;
+  }
+}
+
+.dragcue svg {
+  animation: cue-spin 5.5s var(--ease-inout) infinite;
+}
+
+@keyframes cue-spin {
+  0%,
+  62%,
+  100% {
+    transform: rotate(0deg);
+  }
+  30% {
+    transform: rotate(-26deg);
+  }
+  46% {
+    transform: rotate(18deg);
+  }
+}
+
+/* --- service rail --------------------------------------------------------- */
+
+.rail {
+  width: var(--shell);
+  margin-inline: auto;
+  padding-bottom: calc(24px + var(--protobar-h));
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.rail__items {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+  flex: 1;
+  min-width: 0;
+}
+
+.rail__btn {
+  position: relative;
+  padding: 10px 17px;
+  font-size: 10.5px;
+  font-weight: 620;
+  letter-spacing: 0.185em;
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+  transition: color var(--t-fast) var(--ease-out);
+}
+
+.rail__btn:hover {
+  color: var(--navy);
+}
+
+.rail__btn[data-active='true'] {
+  color: var(--navy);
+}
+
+.rail__btn::after {
+  content: '';
+  position: absolute;
+  left: 17px;
+  right: 17px;
+  top: -15px;
+  height: 2px;
+  background: var(--red);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform var(--t-mid) var(--ease-inout);
+}
+
+.rail__btn[data-active='true']::after {
+  transform: scaleX(1);
+}
+
+.rail__sep {
+  width: 1px;
+  height: 16px;
+  background: var(--line);
+  margin-inline: 12px;
+  flex: none;
+}
+
+.rail__tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+  flex: none;
+}
+
+.pillbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 15px;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  font-size: 10.5px;
+  font-weight: 620;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--slate);
+  background: rgba(252, 250, 246, 0.72);
+  backdrop-filter: blur(8px);
+  transition:
+    color var(--t-fast) var(--ease-out),
+    border-color var(--t-fast) var(--ease-out),
+    background var(--t-fast) var(--ease-out);
+}
+
+.pillbtn:hover {
+  color: var(--navy);
+  border-color: var(--line-strong);
+}
+
+.pillbtn[data-active='true'] {
+  color: var(--porcelain);
+  background: var(--navy);
+  border-color: var(--navy);
+}
+
+.pillbtn__dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.5;
+}
+
+.pillbtn[data-active='true'] .pillbtn__dot {
+  background: var(--red);
+  opacity: 1;
+}
+
+/* --- camera travel cue ---------------------------------------------------- */
+
+.travelbar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: transparent;
+  overflow: hidden;
+}
+
+.travelbar span {
+  transition:
+    transform 130ms linear,
+    opacity var(--t-fast) var(--ease-out);
+  display: block;
+  height: 100%;
+  background: var(--red);
+  transform-origin: left;
+  transition: opacity var(--t-mid) linear;
+}
+
+/* --- hotspots ------------------------------------------------------------- */
+
+.hotspots {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.hotspot {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.hotspot__btn {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--red);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-size: 11.5px;
+  font-weight: 640;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 3px 12px rgba(4, 21, 47, 0.28);
+  pointer-events: auto;
+  transition:
+    transform var(--t-mid) var(--ease-out),
+    box-shadow var(--t-mid) var(--ease-out);
+}
+
+.hotspot__btn::before {
+  content: '';
+  position: absolute;
+  inset: -7px;
+  border-radius: 50%;
+  border: 1px solid var(--red);
+  opacity: 0;
+  transform: scale(0.72);
+  transition:
+    opacity var(--t-mid) var(--ease-out),
+    transform var(--t-mid) var(--ease-out);
+}
+
+.hotspot__btn:hover,
+.hotspot__btn:focus-visible {
+  transform: translate(-50%, -50%) scale(1.12);
+}
+
+.hotspot__btn:hover::before,
+.hotspot__btn:focus-visible::before,
+.hotspot[data-active='true'] .hotspot__btn::before {
+  opacity: 0.85;
+  transform: scale(1);
+}
+
+.hotspot__label {
+  position: absolute;
+  left: 26px;
+  top: 50%;
+  transform: translate(-6px, -50%);
+  white-space: nowrap;
+  background: rgba(252, 250, 246, 0.94);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  padding: 7px 12px 8px;
+  display: grid;
+  gap: 1px;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity var(--t-mid) var(--ease-out),
+    transform var(--t-mid) var(--ease-out);
+}
+
+.hotspot__btn:hover + .hotspot__label,
+.hotspot__btn:focus-visible + .hotspot__label {
+  opacity: 1;
+  transform: translate(0, -50%);
+}
+
+.hotspot__label b {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--navy);
+}
+
+.hotspot__label span {
+  font-size: 10.5px;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+}
+
+/* --- focus panel ---------------------------------------------------------- */
+
+.panel {
+  position: absolute;
+  right: var(--gutter);
+  top: 50%;
+  width: 368px;
+  transform: translate(22px, -50%);
+  opacity: 0;
+  pointer-events: none;
+  background: rgba(252, 250, 246, 0.93);
+  backdrop-filter: blur(16px) saturate(1.1);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 26px 26px 22px;
+  box-shadow: 0 22px 60px -30px rgba(4, 21, 47, 0.4);
+  transition:
+    opacity var(--t-mid) var(--ease-out),
+    transform var(--t-mid) var(--ease-out);
+}
+
+.panel[data-open='true'] {
+  opacity: 1;
+  transform: translate(0, -50%);
+  pointer-events: auto;
+}
+
+.panel__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.panel__kicker {
+  font-size: 10px;
+  font-weight: 620;
+  letter-spacing: 0.17em;
+  text-transform: uppercase;
+  color: var(--red);
+  margin-bottom: 8px;
+}
+
+.panel h3 {
+  font-size: 30px;
+  letter-spacing: -0.022em;
+}
+
+.panel__close {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  color: var(--muted);
+  flex: none;
+  transition:
+    color var(--t-fast) var(--ease-out),
+    border-color var(--t-fast) var(--ease-out);
+}
+
+.panel__close:hover {
+  color: var(--navy);
+  border-color: var(--line-strong);
+}
+
+.panel__body {
+  font-size: 14px;
+  line-height: 1.62;
+  color: var(--slate);
+}
+
+.panel__points {
+  list-style: none;
+  margin: 18px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0;
+  border-top: 1px solid var(--line-soft);
+}
+
+.panel__points li {
+  font-size: 13px;
+  color: var(--slate);
+  padding: 9px 0 9px 18px;
+  border-bottom: 1px solid var(--line-soft);
+  position: relative;
+}
+
+.panel__points li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 17px;
+  width: 6px;
+  height: 1px;
+  background: var(--red);
+}
+
+.panel__actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+
+/* --- before / after ------------------------------------------------------- */
+
+.compare {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--t-mid) var(--ease-out);
+}
+
+.compare[data-open='true'] {
+  opacity: 1;
+}
+
+.compare__surface {
+  position: absolute;
+  inset: 0;
+  /* Closed, this must not sit between the viewer and the model: the canvas,
+     the hotspots and the rail all live underneath it. */
+  pointer-events: none;
+  cursor: ew-resize;
+  touch-action: none;
+}
+
+.compare[data-open='true'] .compare__surface {
+  pointer-events: auto;
+}
+
+.compare__line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  /* Strong where the two halves actually meet on the building, fading out
+     into the sky and the lawn so the seam reads as a wipe rather than a rule
+     drawn across the photograph. */
+  background: linear-gradient(
+    to bottom,
+    rgba(200, 16, 46, 0) 0%,
+    rgba(200, 16, 46, 0.55) 9%,
+    var(--red) 24%,
+    var(--red) 76%,
+    rgba(200, 16, 46, 0.5) 92%,
+    rgba(200, 16, 46, 0) 100%
+  );
+  box-shadow: 0 0 22px rgba(200, 16, 46, 0.22);
+  pointer-events: none;
+}
+
+.compare__handle {
+  transition: opacity var(--t-fast) var(--ease-out);
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: var(--red);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 6px 22px rgba(4, 21, 47, 0.32);
+  pointer-events: auto;
+  cursor: ew-resize;
+  touch-action: none;
+  transition: transform var(--t-fast) var(--ease-out);
+}
+
+.compare__handle:hover,
+.compare[data-dragging='true'] .compare__handle {
+  transform: translate(-50%, -50%) scale(1.07);
+}
+
+.compare__handle svg {
+  pointer-events: none;
+}
+
+.compare__tag {
+  position: absolute;
+  bottom: calc(112px + var(--protobar-h));
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: #fff;
+  background: rgba(4, 21, 47, 0.58);
+  backdrop-filter: blur(6px);
+  padding: 7px 13px;
+  border-radius: 2px;
+  pointer-events: none;
+  transition: opacity var(--t-mid) var(--ease-out);
+}
+
+.compare__tag--before {
+  left: var(--gutter);
+}
+
+.compare__tag--after {
+  right: var(--gutter);
+}
+
+/* --- transformation controls ---------------------------------------------- */
+
+.transform {
+  position: absolute;
+  left: 50%;
+  bottom: calc(24px + var(--protobar-h));
+  transform: translateX(-50%) translateY(14px);
+  opacity: 0;
+  pointer-events: none;
+  width: min(600px, calc(100% - 2 * var(--gutter)));
+  background: rgba(252, 250, 246, 0.94);
+  backdrop-filter: blur(16px) saturate(1.1);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 16px 20px;
+  box-shadow: 0 22px 60px -32px rgba(4, 21, 47, 0.45);
+  display: grid;
+  gap: 14px;
+  transition:
+    opacity var(--t-mid) var(--ease-out),
+    transform var(--t-mid) var(--ease-out);
+}
+
+.transform[data-open='true'] {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+  pointer-events: auto;
+}
+
+.transform__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.transform__title {
+  display: grid;
+  gap: 2px;
+}
+
+.transform__title b {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.transform__title span {
+  font-size: 10.5px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.transform .panel__close {
+  margin-left: 2px;
+}
+
+.transform__readout {
+  font-size: 11px;
+  white-space: nowrap;
+  font-weight: 620;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--slate);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- material chips -------------------------------------------------------
+
+   A finish is a material, not a colour value, so the chip is a piece of the
+   wall: the profile's own relief, a raking highlight across it, and the
+   colour under both. Flat circles would say nothing about what the visitor is
+   actually choosing.
+   ------------------------------------------------------------------------- */
+
+.chiprow {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+}
+
+.chiprow__label {
+  font-size: 10px;
+  font-weight: 620;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.chiprow__items {
+  display: flex;
+  gap: 7px;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 2px;
+  margin: -2px;
+}
+
+.chiprow__items::-webkit-scrollbar {
+  display: none;
+}
+
+.chip {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  flex: none;
+  padding: 5px 7px 6px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.4);
+  transition:
+    border-color var(--t-fast) var(--ease-out),
+    background var(--t-fast) var(--ease-out),
+    transform var(--t-fast) var(--ease-out);
+}
+
+.chip:hover {
+  border-color: var(--line-strong);
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.chip[data-active='true'] {
+  border-color: var(--navy);
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.chip__text {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--slate);
+  white-space: nowrap;
+  transition: color var(--t-fast) var(--ease-out);
+}
+
+.chip[data-active='true'] .chip__text {
+  color: var(--navy);
+}
+
+/* The chip face. `--chip` is the finish; the profile drives the relief. */
+.chip__face {
+  --chip: #d9d3c6;
+  --chip-accent: #e2dcd0;
+  position: relative;
+  width: 52px;
+  height: 32px;
+  flex: none;
+  border-radius: 2px;
+  overflow: hidden;
+  background: var(--chip);
+  box-shadow:
+    inset 0 0 0 1px rgba(4, 21, 47, 0.16),
+    inset 0 -6px 10px -8px rgba(4, 21, 47, 0.7);
+}
+
+/* Relief: the shadow line each course or batten throws on the one below. */
+.chip__face::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+
+/* A raking highlight, so the chip reads as a lit surface rather than a fill. */
+.chip__face::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    116deg,
+    rgba(255, 255, 255, 0.34) 0%,
+    rgba(255, 255, 255, 0.08) 38%,
+    rgba(4, 21, 47, 0.06) 70%,
+    rgba(4, 21, 47, 0.16) 100%
+  );
+}
+
+.chip__face[data-profile='lap']::before {
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.16) 0px,
+    rgba(255, 255, 255, 0.04) 3px,
+    rgba(4, 21, 47, 0.04) 5px,
+    rgba(4, 21, 47, 0.3) 6px,
+    rgba(4, 21, 47, 0.06) 7px
+  );
+}
+
+.chip__face[data-profile='dutch']::before {
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(4, 21, 47, 0.24) 0px,
+    rgba(255, 255, 255, 0.2) 1.5px,
+    rgba(255, 255, 255, 0.05) 4px,
+    rgba(4, 21, 47, 0.16) 6px,
+    rgba(4, 21, 47, 0.3) 7px
+  );
+}
+
+.chip__face[data-profile='shake']::before {
+  background:
+    repeating-linear-gradient(
+      to right,
+      rgba(4, 21, 47, 0.26) 0px,
+      rgba(4, 21, 47, 0.02) 1px,
+      rgba(255, 255, 255, 0.1) 5px,
+      rgba(4, 21, 47, 0.02) 8px,
+      rgba(4, 21, 47, 0.26) 9px
+    ),
+    repeating-linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0.14) 0px,
+      rgba(255, 255, 255, 0.02) 6px,
+      rgba(4, 21, 47, 0.34) 7.5px,
+      rgba(4, 21, 47, 0.05) 9px
+    );
+}
+
+.chip__face[data-profile='board']::before {
+  background: repeating-linear-gradient(
+    to right,
+    rgba(255, 255, 255, 0.26) 0px,
+    rgba(255, 255, 255, 0.12) 2px,
+    rgba(4, 21, 47, 0.3) 3px,
+    rgba(4, 21, 47, 0.03) 5px,
+    rgba(4, 21, 47, 0.03) 9px,
+    rgba(4, 21, 47, 0.22) 10px
+  );
+}
+
+/* A finish chip carries the colour, with the chosen profile's relief on it. */
+.chip__face--finish {
+  background: linear-gradient(to bottom, var(--chip-accent), var(--chip));
+}
+
+.chip[data-active='true'] .chip__face {
+  box-shadow:
+    inset 0 0 0 1px rgba(4, 21, 47, 0.3),
+    inset 0 -6px 10px -8px rgba(4, 21, 47, 0.7),
+    0 0 0 2px var(--paper),
+    0 0 0 3px var(--navy);
+}
+
+/* --- the project summary and its actions ---------------------------------- */
+
+.studio__foot {
+  display: grid;
+  gap: 12px;
+  padding-top: 13px;
+  border-top: 1px solid var(--line-soft);
+}
+
+/* The specification reads as a line of a written quote, so it keeps its own
+   line rather than being squeezed in beside the buttons. */
+.studio__spec {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  min-width: 0;
+}
+
+.studio__spec-label {
+  font-size: 9.5px;
+  font-weight: 620;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--red);
+  white-space: nowrap;
+  flex: none;
+}
+
+.studio__spec p {
+  font-size: 14px;
+  color: var(--navy);
+  font-weight: 520;
+  letter-spacing: -0.006em;
+}
+
+.studio__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+.slider-native {
+  width: 100%;
+  accent-color: var(--red);
+}
+
+/* --- loading and failure -------------------------------------------------- */
+
+.stage__boot {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: var(--porcelain);
+  z-index: 5;
+  transition:
+    opacity var(--t-slow) var(--ease-out),
+    visibility var(--t-slow);
+}
+
+.stage__boot[data-done='true'] {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.boot {
+  display: grid;
+  justify-items: center;
+  gap: 22px;
+}
+
+.boot__bar {
+  width: 168px;
+  height: 1px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.boot__bar i {
+  display: block;
+  height: 100%;
+  width: 40%;
+  background: var(--red);
+  animation: boot-sweep 1.3s var(--ease-inout) infinite;
+}
+
+@keyframes boot-sweep {
+  0% {
+    transform: translateX(-110%);
+  }
+  100% {
+    transform: translateX(310%);
+  }
+}
+
+.boot__label {
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+/* --- fallback ------------------------------------------------------------- */
+
+.fallback {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: calc(var(--header-h) + 24px) var(--gutter) 40px;
+  background: var(--porcelain);
+  z-index: 6;
+  overflow-y: auto;
+}
+
+.fallback__inner {
+  width: min(1120px, 100%);
+  display: grid;
+  grid-template-columns: 1fr 1.1fr;
+  gap: clamp(28px, 4vw, 64px);
+  align-items: center;
+}
+
+.fallback__note {
+  font-size: 11px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-top: 18px;
+}
+
+.fallback svg {
+  width: 100%;
+  height: auto;
+}
+
+@media (max-width: 860px) {
+  .fallback__inner {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* --- prototype label ------------------------------------------------------ */
+
+.demotag {
+  position: absolute;
+  transition: opacity var(--t-mid) var(--ease-out);
+  left: var(--gutter);
+  bottom: calc(92px + var(--protobar-h));
+  font-size: 9.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stage[data-mode='focus'] .demotag,
+.stage[data-mode='transform'] .demotag {
+  opacity: 0;
+}
+
+.demotag::before {
+  content: '';
+  width: 16px;
+  height: 1px;
+  background: var(--line-strong);
+}
+
+/* --- compact -------------------------------------------------------------- */
+
+@media (max-width: 980px) {
+  .stage {
+    height: 92svh;
+    min-height: 560px;
+  }
+
+  /* The scrim has to clear the whole of the hero copy, not just the headline:
+     at 56% the last line of the lede landed where the ramp had already given
+     up, and grey type on a grey roof is unreadable. */
+  .stage__scrim {
+    inset: 0 0 auto 0;
+    width: 100%;
+    height: 74%;
+    background: linear-gradient(
+      to bottom,
+      rgba(244, 239, 230, 0.95) 0%,
+      rgba(244, 239, 230, 0.9) 34%,
+      rgba(244, 239, 230, 0.78) 56%,
+      rgba(244, 239, 230, 0.34) 80%,
+      rgba(244, 239, 230, 0) 100%
+    );
+  }
+
+  .stage__floor {
+    height: 180px;
+    background: linear-gradient(to top, rgba(244, 239, 230, 0.96) 0%, rgba(244, 239, 230, 0.66) 44%, rgba(244, 239, 230, 0) 92%);
+  }
+
+  .hero h1 {
+    font-size: clamp(34px, 9.4vw, 44px);
+  }
+
+  .hero {
+    align-self: start;
+    padding-top: calc(var(--header-h) + 18px);
+  }
+
+  .hero__inner {
+    max-width: none;
+    gap: 16px;
+  }
+
+  .hero__lede {
+    font-size: 14px;
+    max-width: 30ch;
+  }
+
+  .hero__actions {
+    gap: 14px 18px;
+  }
+
+  /* Both of these are one tap away in the menu sheet; over a 3D scene on a
+     375px screen they cost more than they give. */
+  .hero__actions .tlink,
+  .discbtn__text span {
+    display: none;
+  }
+
+  /* The rail scrolls: show that it does. */
+  .rail__items {
+    mask-image: linear-gradient(to right, #000 0, #000 88%, transparent 100%);
+  }
+
+  .dragcue {
+    display: none;
+  }
+
+  .rail {
+    padding-bottom: calc(14px + var(--protobar-h));
+    display: block;
+  }
+
+  .rail__items {
+    overflow-x: auto;
+    scrollbar-width: none;
+    gap: 0;
+    padding-top: 10px;
+    margin-inline: calc(var(--gutter) * -1);
+    padding-inline: var(--gutter);
+    /* The row runs off the edge of a phone; fading it says so. */
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+  }
+
+  .rail__items::-webkit-scrollbar {
+    display: none;
+  }
+
+  .rail__btn {
+    padding: 14px 14px;
+    font-size: 11px;
+  }
+
+  .rail__btn::after {
+    top: -11px;
+    left: 14px;
+    right: 14px;
+  }
+
+  .rail__tools {
+    border-top: 0;
+    padding-top: 10px;
+    justify-content: flex-start;
+  }
+
+  .panel {
+    right: var(--gutter);
+    left: var(--gutter);
+    width: auto;
+    top: auto;
+    /* Tucked against the rail rather than floating in the middle, so the top
+       half of the screen stays the thing the card is talking about. */
+    bottom: calc(92px + var(--protobar-h));
+    transform: translateY(18px);
+    max-height: 44svh;
+    overflow-y: auto;
+    padding: 18px;
+  }
+
+  .panel[data-open='true'] {
+    transform: none;
+  }
+
+  .panel h3 {
+    font-size: 24px;
+  }
+
+  .panel__points {
+    display: none;
+  }
+
+  .transform {
+    bottom: calc(96px + var(--protobar-h));
+    padding: 12px 14px;
+    gap: 9px;
+    max-height: 54svh;
+    overflow-y: auto;
+  }
+
+  .transform__top {
+    position: sticky;
+    top: 0;
+  }
+
+  /* The caption is reassurance for a big screen; on a phone it costs two lines
+     of a panel that is already sitting on top of the house. */
+  .transform__title span {
+    display: none;
+  }
+
+  /* The studio keeps its two chip rows on a phone, because they are the point
+     of it — but the rows scroll, the notes go, and the label sits above. */
+  .chiprow {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+  }
+
+  .chiprow__items {
+    -webkit-mask-image: linear-gradient(to right, #000 0, #000 90%, transparent 100%);
+    mask-image: linear-gradient(to right, #000 0, #000 90%, transparent 100%);
+  }
+
+  .chip {
+    padding: 4px 6px 5px;
+    gap: 5px;
+  }
+
+  .chip__face {
+    width: 34px;
+    height: 21px;
+  }
+
+  .chip__text {
+    font-size: 8.5px;
+    letter-spacing: 0.07em;
+  }
+
+  .studio__spec p {
+    font-size: 13px;
+  }
+
+  .studio__actions .btn,
+  .studio__actions .pillbtn {
+    white-space: nowrap;
+    font-size: 10.5px;
+    padding-inline: 12px;
+    /* A grid item sized to its own content cannot shrink, and these two
+       labels together are wider than a phone. */
+    min-width: 0;
+  }
+
+  .studio__foot {
+    display: grid;
+    gap: 9px;
+    padding-top: 9px;
+  }
+
+  /* Stacked, not side by side: "Continue to estimate" beside "Look inside
+     the wall" overflows a 375 px screen however the type is tightened. */
+  .studio__actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 7px;
+  }
+
+  /* Leaving the studio is also on the close control and the rail. */
+  .studio__actions > :last-child {
+    display: none;
+  }
+
+  .studio__actions .btn {
+    justify-content: center;
+  }
+
+  /* Over lawn and shadow the rail needs more weight than a desk screen does. */
+  .rail__btn {
+    color: var(--slate);
+  }
+
+  .compare__tag {
+    bottom: calc(168px + var(--protobar-h));
+  }
+
+  .demotag {
+    display: none;
+  }
+
+  .hotspot__label {
+    display: none;
+  }
+
+  .hotspot__btn {
+    width: 34px;
+    height: 34px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero h1 span i {
+    transform: none;
+    animation: none;
+  }
+
+  .dragcue {
+    opacity: 1;
+    animation: none;
+  }
+
+  .dragcue svg {
+    animation: none;
+  }
+}
+
+/* --- inside the wall ------------------------------------------------------- */
+
+/* The stage goes dark, so everything built for porcelain gets out of the way. */
+.stage[data-mode='wall'] .stage__scrim,
+.stage[data-mode='wall'] .stage__sky,
+.stage[data-mode='wall'] .stage__floor,
+.stage[data-mode='wall'] .demotag,
+.stage[data-mode='wall'] .dragcue {
+  opacity: 0;
+}
+
+.stage[data-mode='wall'] .hero__inner {
+  opacity: 0;
+  transform: translateY(-14px);
+  pointer-events: none;
+}
+
+.stage[data-mode='wall'] .rail {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(10px);
+}
+
+.rail {
+  transition:
+    opacity var(--t-mid) var(--ease-out),
+    transform var(--t-mid) var(--ease-out);
+}
+
+/* Covers the half-second where the house leaves and the section arrives. */
+.wallveil {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  visibility: hidden;
+  opacity: 0;
+  background: #04152f;
+}
+
+/* --- the flags on the layers ---------------------------------------------- */
+
+.walllabels {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.walllabel {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 11px 5px 5px;
+  margin: -15px 0 0 -14px;
+  white-space: nowrap;
+  border: 1px solid rgba(233, 240, 252, 0.16);
+  border-radius: 2px;
+  background: rgba(4, 21, 47, 0.62);
+  backdrop-filter: blur(8px);
+  color: rgba(233, 240, 252, 0.88);
+  transition:
+    border-color var(--t-fast) var(--ease-out),
+    background var(--t-fast) var(--ease-out);
+}
+
+/* The leader line down to the layer the flag belongs to. The flags climb so
+   they can be read; the leader is what keeps them attached to the wall. */
+.walllabel::after {
+  content: '';
+  position: absolute;
+  left: 23px;
+  top: 100%;
+  width: 1px;
+  height: var(--stem, 0px);
+  background: linear-gradient(
+    to bottom,
+    rgba(233, 240, 252, 0.34),
+    rgba(233, 240, 252, 0.06)
+  );
+}
+
+.walllabel__no {
+  width: 19px;
+  height: 19px;
+  display: grid;
+  place-items: center;
+  border-radius: 2px;
+  background: rgba(233, 240, 252, 0.1);
+  font-size: 10px;
+  font-weight: 640;
+  font-variant-numeric: tabular-nums;
+}
+
+.walllabel__name {
+  font-size: 10.5px;
+  font-weight: 560;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.walllabel[data-active='true'] {
+  border-color: rgba(200, 16, 46, 0.7);
+  background: rgba(10, 30, 60, 0.82);
+}
+
+.walllabel[data-active='true'] .walllabel__no {
+  background: var(--red);
+  color: #fff;
+}
+
+.walllabel[data-active='true']::after {
+  background: linear-gradient(to bottom, rgba(200, 16, 46, 0.66), rgba(200, 16, 46, 0.1));
+}
+
+.walllabel[data-dim='true'] {
+  border-color: rgba(233, 240, 252, 0.07);
+  color: rgba(233, 240, 252, 0.4);
+}
+
+.walllabel[data-dim='true']::after {
+  opacity: 0.4;
+}
+
+/* --- the inspection panel -------------------------------------------------- */
+
+.wallpanel {
+  position: absolute;
+  right: var(--gutter);
+  top: 50%;
+  z-index: 6;
+  width: 372px;
+  transform: translate(22px, -50%);
+  opacity: 0;
+  pointer-events: none;
+  background: rgba(6, 24, 50, 0.82);
+  backdrop-filter: blur(18px) saturate(1.15);
+  border: 1px solid rgba(233, 240, 252, 0.13);
+  border-radius: 4px;
+  padding: 24px 24px 20px;
+  color: rgba(233, 240, 252, 0.9);
+  box-shadow: 0 30px 70px -34px rgba(0, 0, 0, 0.8);
+  transition:
+    opacity var(--t-mid) var(--ease-out),
+    transform var(--t-mid) var(--ease-out);
+}
+
+.wallpanel[data-open='true'] {
+  opacity: 1;
+  transform: translate(0, -50%);
+  pointer-events: auto;
+}
+
+.wallpanel:focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: 3px;
+}
+
+.wallpanel__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.wallpanel__kicker {
+  font-size: 10px;
+  font-weight: 620;
+  letter-spacing: 0.17em;
+  text-transform: uppercase;
+  color: #ff5f78;
+  margin-bottom: 8px;
+}
+
+.wallpanel h3 {
+  font-family: var(--display);
+  font-size: 27px;
+  letter-spacing: -0.022em;
+  color: #f4f7fd;
+}
+
+.wallpanel .panel__close {
+  border-color: rgba(233, 240, 252, 0.16);
+  color: rgba(233, 240, 252, 0.6);
+}
+
+.wallpanel .panel__close:hover {
+  color: #fff;
+  border-color: rgba(233, 240, 252, 0.4);
+}
+
+.wallpanel__lede {
+  font-size: 13px;
+  line-height: 1.6;
+  color: rgba(233, 240, 252, 0.62);
+}
+
+.walllist {
+  list-style: none;
+  margin: 16px 0 0;
+  padding: 0;
+  border-top: 1px solid rgba(233, 240, 252, 0.1);
+}
+
+.walllist li {
+  border-bottom: 1px solid rgba(233, 240, 252, 0.1);
+}
+
+.walllist__btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 9px 4px;
+  text-align: left;
+  color: inherit;
+  transition: color var(--t-fast) var(--ease-out);
+}
+
+.walllist__no {
+  width: 22px;
+  height: 22px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(233, 240, 252, 0.2);
+  border-radius: 2px;
+  font-size: 10px;
+  font-weight: 640;
+  font-variant-numeric: tabular-nums;
+  color: rgba(233, 240, 252, 0.66);
+  transition:
+    background var(--t-fast) var(--ease-out),
+    border-color var(--t-fast) var(--ease-out),
+    color var(--t-fast) var(--ease-out);
+}
+
+.walllist__text {
+  display: grid;
+  gap: 1px;
+}
+
+.walllist__text b {
+  font-size: 13.5px;
+  font-weight: 580;
+}
+
+.walllist__text span {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(233, 240, 252, 0.44);
+}
+
+.walllist__btn:hover .walllist__no {
+  border-color: rgba(233, 240, 252, 0.44);
+  color: #fff;
+}
+
+.walllist__btn[data-active='true'] .walllist__no {
+  background: var(--red);
+  border-color: var(--red);
+  color: #fff;
+}
+
+.wallpanel__blurb {
+  font-size: 13px;
+  line-height: 1.6;
+  color: rgba(233, 240, 252, 0.74);
+  margin-top: 14px;
+  min-height: 62px;
+}
+
+.wallpanel__foot {
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
+  margin-top: 4px;
+}
+
+.wallpanel__slider {
+  display: grid;
+  gap: 5px;
+  flex: 1;
+  min-width: 0;
+}
+
+.wallpanel__slider .slider-native {
+  accent-color: #ff5f78;
+}
+
+.wallpanel__ticks {
+  display: flex;
+  justify-content: space-between;
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(233, 240, 252, 0.4);
+}
+
+.wallpanel .pillbtn {
+  flex: none;
+  background: transparent;
+  border-color: rgba(233, 240, 252, 0.2);
+  color: rgba(233, 240, 252, 0.88);
+}
+
+.wallpanel .pillbtn:hover {
+  border-color: rgba(233, 240, 252, 0.46);
+  color: #fff;
+}
+
+@media (max-width: 980px) {
+  /* A sheet off the bottom edge, so the section keeps the top of the screen. */
+  .wallpanel {
+    right: 0;
+    left: 0;
+    top: auto;
+    bottom: var(--protobar-h);
+    width: auto;
+    transform: translateY(18px);
+    border-radius: 4px 4px 0 0;
+    border-bottom: none;
+    padding: 18px var(--gutter) 16px;
+  }
+
+  .wallpanel[data-open='true'] {
+    transform: translateY(0);
+  }
+
+  .wallpanel h3 {
+    font-size: 23px;
+  }
+
+  .wallpanel__lede {
+    display: none;
+  }
+
+  .walllist {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    border-top: none;
+    margin-top: 12px;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+    /* The row runs past the edge on a phone. Fading it says so; a word cut
+       clean in half just looks like a layout that broke. */
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 26px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 26px), transparent);
+  }
+
+  .walllist::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Five flags will not fit across a phone, and a heap of them is worse than
+     none: the panel's own numbered list already maps them. Only the layer
+     being inspected keeps its flag. */
+  .walllabel {
+    display: none;
+  }
+
+  .walllabel[data-active='true'] {
+    display: flex;
+  }
+
+  .walllist li {
+    border-bottom: none;
+    flex: none;
+  }
+
+  .walllist__btn {
+    border: 1px solid rgba(233, 240, 252, 0.16);
+    border-radius: 2px;
+    padding: 7px 11px 7px 7px;
+  }
+
+  .walllist__text span {
+    display: none;
+  }
+
+  .wallpanel__blurb {
+    min-height: 58px;
+    font-size: 12.5px;
+  }
+}

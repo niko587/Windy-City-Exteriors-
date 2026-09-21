@@ -1,0 +1,749 @@
+/* ---------------------------------------------------------------------------
+   Homepage sections. Editorial rows and asymmetric layouts; no card grids.
+   --------------------------------------------------------------------------- */
+
+/* --- positioning ---------------------------------------------------------- */
+
+.values {
+  display: grid;
+  grid-template-columns: 0.9fr 1.1fr;
+  gap: clamp(32px, 5vw, 90px);
+  align-items: start;
+}
+
+.values__list {
+  display: grid;
+  border-top: 1px solid var(--line);
+}
+
+.value {
+  display: grid;
+  grid-template-columns: 34px 1fr;
+  gap: 20px;
+  padding: 26px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.value__no {
+  font-size: 11px;
+  font-weight: 620;
+  letter-spacing: 0.1em;
+  color: var(--red);
+  font-variant-numeric: tabular-nums;
+  padding-top: 5px;
+}
+
+.value h3 {
+  font-size: clamp(19px, 1.6vw, 24px);
+  margin-bottom: 8px;
+}
+
+.value p {
+  font-size: 14.5px;
+  line-height: 1.62;
+  color: var(--slate);
+  max-width: 54ch;
+}
+
+@media (max-width: 900px) {
+  .values {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* --- craftsmanship / wall assembly ---------------------------------------- */
+
+.craft {
+  background: var(--navy-deep);
+  color: var(--porcelain);
+  overflow: hidden;
+  position: relative;
+}
+
+.craft__grid {
+  display: grid;
+  grid-template-columns: 0.85fr 1.15fr;
+  gap: clamp(30px, 5vw, 72px);
+  align-items: center;
+}
+
+.craft h2 {
+  font-size: clamp(34px, 4.2vw, 62px);
+  line-height: 0.99;
+  letter-spacing: -0.028em;
+  font-variation-settings: 'SOFT' 0, 'WONK' 1, 'opsz' 120;
+}
+
+.craft__lede {
+  color: rgba(244, 239, 230, 0.7);
+  font-size: 16px;
+  line-height: 1.62;
+  max-width: 38ch;
+  margin-top: 20px;
+}
+
+.craft__rule {
+  width: 54px;
+  height: 2px;
+  background: var(--red);
+  margin: 26px 0;
+}
+
+.craft__steps {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin-top: 34px;
+  flex-wrap: wrap;
+}
+
+.craft__step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 18px 10px 0;
+  color: rgba(244, 239, 230, 0.5);
+  font-size: 11.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-weight: 600;
+  transition: color var(--t-fast) var(--ease-out);
+}
+
+.craft__step:hover {
+  color: rgba(244, 239, 230, 0.85);
+}
+
+.craft__step[data-active='true'] {
+  color: #fff;
+}
+
+.craft__step i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 1px solid currentColor;
+  flex: none;
+  transition: background var(--t-fast) var(--ease-out);
+}
+
+.craft__step[data-active='true'] i {
+  background: var(--red);
+  border-color: var(--red);
+}
+
+/* Layered wall, in CSS 3D. Cheap, and it separates on cue like the reference. */
+.assembly {
+  position: relative;
+  height: clamp(320px, 42vw, 480px);
+  perspective: 1400px;
+  perspective-origin: 62% 50%;
+}
+
+.assembly__stack {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  transform: rotateX(4deg) rotateY(-34deg);
+}
+
+.layer {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: clamp(150px, 19vw, 230px);
+  height: clamp(250px, 33vw, 380px);
+  margin: calc(clamp(250px, 33vw, 380px) / -2) 0 0 calc(clamp(150px, 19vw, 230px) / -2);
+  border-radius: 2px;
+  box-shadow: 0 30px 60px -30px rgba(0, 0, 0, 0.7);
+  transform-style: preserve-3d;
+  transition:
+    transform 900ms var(--ease-inout),
+    opacity 600ms var(--ease-out),
+    filter 600ms var(--ease-out);
+  opacity: 0.35;
+  filter: saturate(0.5) brightness(0.62);
+}
+
+.assembly[data-shown='true'] .layer {
+  opacity: 1;
+  filter: none;
+}
+
+.assembly[data-shown='true'] .layer[data-dim='true'] {
+  opacity: 0.4;
+  filter: saturate(0.42) brightness(0.68);
+}
+
+.layer__label {
+  position: absolute;
+  left: calc(100% + 18px);
+  top: 22px;
+  white-space: nowrap;
+  font-size: 10.5px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  font-weight: 620;
+  color: rgba(244, 239, 230, 0.78);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  opacity: 0;
+  transition: opacity 500ms var(--ease-out);
+}
+
+.layer__label::before {
+  content: '';
+  width: 26px;
+  height: 1px;
+  background: rgba(244, 239, 230, 0.35);
+}
+
+.assembly[data-shown='true'] .layer__label {
+  opacity: 1;
+}
+
+/* Material fills, all generated from gradients — no image requests. */
+.layer--studs {
+  background:
+    repeating-linear-gradient(90deg, #b99568 0 14px, #a8855c 14px 16px, transparent 16px 52px),
+    linear-gradient(180deg, #4a3d2e, #3b3125);
+}
+
+.layer--sheathing {
+  background:
+    radial-gradient(circle at 20% 30%, rgba(160, 120, 70, 0.55) 0 3px, transparent 4px),
+    radial-gradient(circle at 62% 66%, rgba(150, 112, 64, 0.5) 0 4px, transparent 5px),
+    radial-gradient(circle at 80% 18%, rgba(170, 128, 76, 0.45) 0 3px, transparent 4px),
+    linear-gradient(140deg, #b08f5e, #9b7c4f);
+}
+
+.layer--wrap {
+  background: linear-gradient(170deg, #f1f1ee, #d9dad6);
+  color: #6d7378;
+}
+
+.layer--wrap span {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  font-weight: 700;
+  transform: rotate(-90deg);
+}
+
+.layer--siding {
+  background:
+    repeating-linear-gradient(
+      180deg,
+      rgba(0, 0, 0, 0.26) 0 1px,
+      rgba(255, 255, 255, 0.07) 1px 3px,
+      transparent 3px 22px
+    ),
+    var(--craft-siding, #31415a);
+  transition:
+    transform 900ms var(--ease-inout),
+    opacity 600ms var(--ease-out),
+    filter 600ms var(--ease-out),
+    background-color 500ms var(--ease-out);
+}
+
+.layer--trim {
+  background: linear-gradient(170deg, #f4f1ea, #ddd8cd);
+}
+
+.layer--trim::after {
+  content: '';
+  position: absolute;
+  inset: 16% 14%;
+  border: 6px solid rgba(8, 42, 92, 0.16);
+  background: linear-gradient(150deg, rgba(150, 180, 215, 0.55), rgba(30, 48, 74, 0.8));
+}
+
+.craft__picker {
+  display: flex;
+  gap: 8px;
+  margin-top: 28px;
+  flex-wrap: wrap;
+}
+
+.craft__chip {
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+  padding: 10px 12px 11px;
+  border: 1px solid rgba(244, 239, 230, 0.16);
+  border-radius: 3px;
+  color: rgba(244, 239, 230, 0.68);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-weight: 600;
+  transition:
+    border-color var(--t-fast) var(--ease-out),
+    color var(--t-fast) var(--ease-out);
+}
+
+.craft__chip:hover,
+.craft__chip[data-active='true'] {
+  border-color: rgba(244, 239, 230, 0.5);
+  color: #fff;
+}
+
+.craft__chip i {
+  width: 38px;
+  height: 22px;
+  border-radius: 2px;
+  display: block;
+}
+
+@media (max-width: 900px) {
+  .craft__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .assembly {
+    perspective-origin: 50% 50%;
+    height: 340px;
+  }
+
+  .layer__label {
+    display: none;
+  }
+}
+
+/* --- services ------------------------------------------------------------- */
+
+.srv {
+  border-top: 1px solid var(--line);
+}
+
+.srv__row {
+  display: grid;
+  /* The middle column only ever holds a name and two short lines; given equal
+     width to the specification column it leaves a dead gutter down the middle
+     of eight consecutive rows. */
+  grid-template-columns: 82px minmax(0, 0.82fr) minmax(0, 1.18fr);
+  gap: clamp(20px, 3.5vw, 56px);
+  padding: clamp(34px, 4vw, 54px) 0;
+  border-bottom: 1px solid var(--line);
+  align-items: start;
+  position: relative;
+}
+
+.srv__row::before {
+  content: '';
+  position: absolute;
+  inset: 0 -20px;
+  background: var(--paper);
+  opacity: 0;
+  z-index: -1;
+  transition: opacity var(--t-mid) var(--ease-out);
+}
+
+.srv__row:hover::before {
+  opacity: 1;
+}
+
+.srv__no {
+  font-size: 11px;
+  font-weight: 620;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  padding-top: 10px;
+}
+
+.srv__name {
+  display: grid;
+  gap: 12px;
+}
+
+.srv__name h3 {
+  font-size: clamp(27px, 3vw, 44px);
+  letter-spacing: -0.024em;
+}
+
+.srv__cat {
+  font-size: 10px;
+  font-weight: 620;
+  letter-spacing: 0.17em;
+  text-transform: uppercase;
+  color: var(--red);
+}
+
+.srv__body {
+  display: grid;
+  gap: 16px;
+  padding-top: 8px;
+}
+
+.srv__body p {
+  font-size: 14.5px;
+  line-height: 1.65;
+  color: var(--slate);
+  max-width: 56ch;
+}
+
+.srv__scope {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.srv__scope li {
+  font-size: 13.5px;
+  color: var(--slate);
+  padding-left: 17px;
+  position: relative;
+}
+
+.srv__scope li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 10px;
+  width: 7px;
+  height: 1px;
+  background: var(--red);
+}
+
+.srv__actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+@media (max-width: 860px) {
+  .srv__row {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+
+  .srv__no {
+    padding-top: 0;
+  }
+}
+
+/* --- projects ------------------------------------------------------------- */
+
+.gallery {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 18px;
+}
+
+.shot {
+  position: relative;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  border-radius: 3px;
+  overflow: hidden;
+  min-height: 210px;
+  display: grid;
+  align-content: end;
+  padding: 20px;
+  transition:
+    border-color var(--t-mid) var(--ease-out),
+    transform var(--t-mid) var(--ease-out);
+}
+
+.shot:hover {
+  border-color: var(--line-strong);
+  transform: translateY(-3px);
+}
+
+.shot--wide {
+  grid-column: span 3;
+  min-height: 280px;
+}
+
+.shot--std {
+  grid-column: span 2;
+}
+
+.shot--tall {
+  grid-column: span 2;
+  min-height: 340px;
+}
+
+.shot__img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* A render arriving late should not flash the gradient away. */
+  animation: shot-in 620ms var(--ease-out) both;
+}
+
+@keyframes shot-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.shot__art {
+  position: absolute;
+  inset: 0;
+  background: var(--shot-bg, linear-gradient(150deg, #dfe4ec, #c9ccc6));
+}
+
+/* The caption sits on the art, so the scrim has to sit on top of whatever the
+   art turns out to be — the gradient placeholder or a render. */
+.shot__art::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(252, 250, 246, 0) 38%, rgba(252, 250, 246, 0.95) 100%);
+}
+
+.shot__art svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.shot__meta {
+  position: relative;
+  display: grid;
+  gap: 5px;
+}
+
+.shot__meta b {
+  font-family: var(--display);
+  font-size: 19px;
+  font-weight: 460;
+  letter-spacing: -0.014em;
+}
+
+.shot__meta span {
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+@media (max-width: 900px) {
+  .gallery {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .shot--wide,
+  .shot--std,
+  .shot--tall {
+    grid-column: span 1;
+    min-height: 190px;
+  }
+}
+
+@media (max-width: 560px) {
+  .gallery {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* --- reviews -------------------------------------------------------------- */
+
+.reviews {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: clamp(24px, 4vw, 60px);
+  align-items: center;
+}
+
+.reviews__links {
+  display: grid;
+  gap: 12px;
+}
+
+.extlink {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 20px 22px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--paper);
+  transition:
+    border-color var(--t-mid) var(--ease-out),
+    transform var(--t-mid) var(--ease-out);
+}
+
+.extlink:hover {
+  border-color: var(--line-strong);
+  transform: translateX(3px);
+}
+
+.extlink b {
+  font-size: 16px;
+  font-weight: 580;
+}
+
+.extlink span {
+  font-size: 13px;
+  color: var(--muted);
+  display: block;
+  margin-top: 3px;
+}
+
+@media (max-width: 860px) {
+  .reviews {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* --- closing CTA ---------------------------------------------------------- */
+
+.cta {
+  background: var(--navy-deep);
+  color: var(--porcelain);
+}
+
+.cta__grid {
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: clamp(28px, 4vw, 70px);
+  align-items: center;
+}
+
+.cta h2 {
+  font-size: clamp(32px, 4.4vw, 64px);
+  line-height: 1;
+  letter-spacing: -0.03em;
+  font-variation-settings: 'SOFT' 0, 'WONK' 1, 'opsz' 120;
+}
+
+.cta__facts {
+  display: grid;
+  gap: 0;
+  border-top: 1px solid rgba(244, 239, 230, 0.16);
+}
+
+.cta__fact {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 15px 0;
+  border-bottom: 1px solid rgba(244, 239, 230, 0.16);
+  font-size: 14px;
+}
+
+.cta__fact b {
+  font-weight: 580;
+  color: #fff;
+  text-align: right;
+}
+
+.cta__actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 30px;
+}
+
+.cta .btn {
+  --btn-line: rgba(244, 239, 230, 0.32);
+  --btn-fg: var(--porcelain);
+}
+
+.cta .btn--primary {
+  --btn-line: var(--red);
+  --btn-fg: #fff;
+}
+
+@media (max-width: 860px) {
+  .cta__grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* --- generic page header -------------------------------------------------- */
+
+.pagehead {
+  padding: calc(var(--header-h) + clamp(48px, 7vw, 104px)) 0 clamp(34px, 4vw, 60px);
+  border-bottom: 1px solid var(--line);
+}
+
+.pagehead__inner {
+  display: grid;
+  gap: 20px;
+  /* `.shell` centres its own width, so capping this at 800px used to centre
+     an 800px block in the viewport and push the heading 240px right of the
+     logo, the step rail and the footer. Cap the measure, not the block. */
+  max-width: none;
+}
+
+.pagehead__inner > * {
+  max-width: 800px;
+}
+
+.pagehead h1 {
+  font-size: clamp(38px, 5.4vw, 76px);
+  letter-spacing: -0.03em;
+  font-variation-settings: 'SOFT' 0, 'WONK' 1, 'opsz' 120;
+}
+
+/* --- about ---------------------------------------------------------------- */
+
+.about__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: clamp(28px, 5vw, 80px);
+  align-items: start;
+}
+
+.about__body {
+  display: grid;
+  gap: 20px;
+}
+
+.about__body p {
+  font-size: 16px;
+  line-height: 1.7;
+  color: var(--slate);
+}
+
+.customers {
+  display: grid;
+  border-top: 1px solid var(--line);
+}
+
+.customer {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 20px;
+  padding: 20px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.customer b {
+  font-family: var(--display);
+  font-size: 22px;
+  font-weight: 460;
+}
+
+.customer span {
+  font-size: 13.5px;
+  color: var(--muted);
+  text-align: right;
+}
+
+@media (max-width: 860px) {
+  .about__grid {
+    grid-template-columns: 1fr;
+  }
+}

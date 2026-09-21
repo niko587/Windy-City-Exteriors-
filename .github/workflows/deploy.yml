@@ -1,0 +1,61 @@
+# Builds the prototype and publishes it to GitHub Pages so it can be opened in
+# a browser rather than checked out and run.
+name: Deploy prototype to GitHub Pages
+
+on:
+  push:
+    branches: [codex/interactive-prototype]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# A newer push should win, but never by cancelling a deploy half way through.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run typecheck
+
+      - run: npm run test
+
+      - name: Build for the project sub-path
+        env:
+          # The site is served from https://<owner>.github.io/<repository>/.
+          SITE_BASE: /${{ github.event.repository.name }}/
+        run: npm run build
+
+      - uses: actions/configure-pages@v5
+        with:
+          # Turns Pages on the first time this runs, so the repository needs no
+          # manual setup before the first deploy.
+          enablement: true
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

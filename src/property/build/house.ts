@@ -133,10 +133,25 @@ function blankUv(g: THREE.BufferGeometry): THREE.BufferGeometry {
   return g;
 }
 
+/**
+ * A shrub is a mass, not a ball. One displaced icosahedron reads as exactly
+ * what it is from ten metres away; three overlapping lobes at different
+ * heights break the silhouette, which is the only part of a shrub anyone
+ * actually looks at, for about the same number of triangles.
+ */
 function shrub(p: Parts, x: number, z: number, r: number, seed: number): void {
-  const g = blob(r, 1, seed, 0.82, 0.3);
-  g.translate(x, r * 0.72, z);
-  p.add('shrub', g);
+  const rnd = mulberry32(seed * 37 + 11);
+  const lobes: [number, number, number, number][] = [
+    [0, r * 0.7, 0, 0.92],
+    [r * 0.46, r * 1.06, r * 0.2, 0.66],
+    [-r * 0.38, r * 0.95, -r * 0.26, 0.58],
+  ];
+  for (let i = 0; i < lobes.length; i++) {
+    const [lx, ly, lz, k] = lobes[i];
+    const g = blob(r * k, 1, seed + i * 13, 0.78 + rnd() * 0.18, 0.36);
+    g.translate(x + lx + (rnd() - 0.5) * r * 0.14, ly, z + lz + (rnd() - 0.5) * r * 0.14);
+    p.add('shrub', g);
+  }
 }
 
 function tree(p: Parts, x: number, z: number, scale: number, seed: number): void {
@@ -551,15 +566,21 @@ export function buildProperty(): PropertyBuild {
       }
     }
 
-    local(P, elevationMatrix([deck.xL, 0, deck.zF], [0, 0, -1]), (p) => {
-      railing(p, 0.05, dW - deck.stairW - 0.2, deck.y, 0.05, deck.railH);
-      railing(p, dW - deck.stairW - 0.1, dW - 0.05, deck.y, 0.05, deck.railH);
+    /* Each rail starts at the corner its wall-local u axis runs away from:
+       u is UP × normal, so it runs toward -x off a -z wall and toward -z off
+       a +x wall. Starting from the other corner runs the whole rail out over
+       the lawn, which is exactly what it was doing. The gap in the front rail
+       is the stair opening, and it is measured from the same corner as the
+       stair itself so the two can never drift apart. */
+    const stairU = deck.xR - (deck.xR - deck.stairW / 2 - 0.15);
+    local(P, elevationMatrix([deck.xR, 0, deck.zF], [0, 0, -1]), (p) => {
+      railing(p, stairU + deck.stairW / 2 + 0.16, dW - 0.05, deck.y, -0.06, deck.railH);
     });
-    local(P, elevationMatrix([deck.xR, 0, deck.zF], [1, 0, 0]), (p) => {
-      railing(p, 0.05, dD - 0.05, deck.y, -0.05, deck.railH);
+    local(P, elevationMatrix([deck.xR, 0, deck.zN], [1, 0, 0]), (p) => {
+      railing(p, 0.05, dD - 0.05, deck.y, -0.06, deck.railH);
     });
-    local(P, elevationMatrix([deck.xL, 0, deck.zN], [-1, 0, 0]), (p) => {
-      railing(p, 0.05, dD - 0.05, deck.y, -0.05, deck.railH);
+    local(P, elevationMatrix([deck.xL, 0, deck.zF], [-1, 0, 0]), (p) => {
+      railing(p, 0.05, dD - 0.05, deck.y, -0.06, deck.railH);
     });
 
     local(P, elevationMatrix([deck.xR - deck.stairW / 2 - 0.15, 0, deck.zF], [0, 0, -1]), (p) => {
@@ -632,6 +653,36 @@ export function buildProperty(): PropertyBuild {
   tree(P, 12.4, 15.8, 1.0, 211);
   tree(P, 16.2, -13.4, 1.4, 307);
   tree(P, -14.2, -10.6, 1.2, 409);
+
+  /* A treeline behind the property. Without it the lawn meets the sky along a
+     ruled line at the far edge of the plane and the whole site reads as a
+     model on a table. These sit a hundred metres out and well inside the fog
+     range, so they read as a hazed band at the property line rather than as
+     trees on the site: close enough to catch, too far to look at. */
+  {
+    const rnd = mulberry32(9173);
+    for (let i = 0; i < 34; i++) {
+      // An arc behind and to the sides; the front-right quadrant stays open,
+      // because that is where every composition places the sky.
+      const a = 1.85 + (i / 33) * 4.0 + (rnd() - 0.5) * 0.08;
+      const d = 118 + rnd() * 34;
+      const x = Math.sin(a) * d;
+      const z = Math.cos(a) * d;
+      // Small enough that the fog reads as haze on a band of trees rather than
+      // as pale cloud shapes standing above the roofline.
+      const r = 2.8 + rnd() * 1.7;
+      const trunk = 2.2 + rnd() * 1.3;
+      P.add('bark', blankUv(cyl(0.26, 0.4, trunk * 2, 5, { at: [x, trunk, z] })));
+      for (let l = 0; l < 3; l++) {
+        // Detail 1 rather than 0: a bare icosahedron keeps its facets even
+        // under heavy fog, and one faceted lump on the horizon is worse than
+        // no treeline at all. Eighty faces at this size is nothing.
+        const g = blob(r * (0.68 + rnd() * 0.4), 1, 900 + i * 7 + l, 0.84, 0.34);
+        g.translate(x + (rnd() - 0.5) * r * 0.9, trunk * 1.35 + r * 0.55 + (rnd() - 0.5) * r * 0.4, z + (rnd() - 0.5) * r * 0.9);
+        P.add('foliage', g);
+      }
+    }
+  }
 
   /* -- finish ------------------------------------------------------------- */
 

@@ -188,22 +188,44 @@ const SHOT_BG: Record<string, string> = {
   gutters: 'linear-gradient(150deg, #e7e3da, #b6b3ab)',
 };
 
+/**
+ * A slot in the gallery.
+ *
+ * The image, where there is one, is a still rendered from this same property
+ * — not a photograph of anyone's house, which is why the caption says so. The
+ * gradient stays underneath as the fallback: if a still is missing the tile
+ * still reads as a deliberate placeholder rather than a broken image.
+ */
 export function DemoShot({
   title,
   service,
   size,
+  still,
 }: {
   title: string;
   service: string;
   size: 'wide' | 'tall' | 'std';
+  still?: string;
 }): React.JSX.Element {
+  const [failed, setFailed] = useState(false);
   return (
     <Reveal className={`shot shot--${size}`}>
       <span
         className="shot__art"
         style={{ ['--shot-bg' as string]: SHOT_BG[service] ?? SHOT_BG.windows }}
         aria-hidden="true"
-      />
+      >
+        {still && !failed && (
+          <img
+            className="shot__img"
+            src={`${import.meta.env.BASE_URL}renders/${still}.jpg`}
+            alt=""
+            loading="lazy"
+            decoding="async"
+            onError={() => setFailed(true)}
+          />
+        )}
+      </span>
       <span className="shot__meta">
         <b>{title}</b>
         <span>Interactive demonstration</span>
@@ -226,7 +248,7 @@ function Projects(): React.JSX.Element {
 
       <div className="gallery">
         {gallerySlots.map((g) => (
-          <DemoShot key={g.id} title={g.title} service={g.service} size={g.size} />
+          <DemoShot key={g.id} title={g.title} service={g.service} size={g.size} still={g.still} />
         ))}
       </div>
 

@@ -21,7 +21,7 @@ export function Projects(): React.JSX.Element {
       <section className="section shell">
         <div className="gallery">
           {gallerySlots.map((g) => (
-            <DemoShot key={g.id} title={g.title} service={g.service} size={g.size} />
+            <DemoShot key={g.id} title={g.title} service={g.service} size={g.size} still={g.still} />
           ))}
         </div>
       </section>

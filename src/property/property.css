@@ -93,9 +93,12 @@
 .stage__floor {
   position: absolute;
   inset: auto 0 0 0;
-  height: 210px;
+  height: 188px;
   pointer-events: none;
-  background: linear-gradient(to top, rgba(244, 239, 230, 0.94) 0%, rgba(244, 239, 230, 0.72) 42%, rgba(244, 239, 230, 0) 100%);
+  /* Enough to carry the rail, not enough to dissolve the bottom of the house:
+     a scrim that reaches halfway up the wall washes the building to milk. */
+  background: linear-gradient(to top, rgba(244, 239, 230, 0.92) 0%, rgba(244, 239, 230, 0.46) 40%, rgba(244, 239, 230, 0) 88%);
+  transition: opacity var(--t-mid) var(--ease-out);
 }
 
 /* --- hero copy ------------------------------------------------------------ */
@@ -444,6 +447,9 @@
 }
 
 .travelbar span {
+  transition:
+    transform 130ms linear,
+    opacity var(--t-fast) var(--ease-out);
   display: block;
   height: 100%;
   background: var(--red);
@@ -696,12 +702,24 @@
   bottom: 0;
   width: 2px;
   margin-left: -1px;
-  background: var(--red);
-  box-shadow: 0 0 22px rgba(200, 16, 46, 0.35);
+  /* Strong where the two halves actually meet on the building, fading out
+     into the sky and the lawn so the seam reads as a wipe rather than a rule
+     drawn across the photograph. */
+  background: linear-gradient(
+    to bottom,
+    rgba(200, 16, 46, 0) 0%,
+    rgba(200, 16, 46, 0.55) 9%,
+    var(--red) 24%,
+    var(--red) 76%,
+    rgba(200, 16, 46, 0.5) 92%,
+    rgba(200, 16, 46, 0) 100%
+  );
+  box-shadow: 0 0 22px rgba(200, 16, 46, 0.22);
   pointer-events: none;
 }
 
 .compare__handle {
+  transition: opacity var(--t-fast) var(--ease-out);
   position: absolute;
   top: 50%;
   left: 50%;
@@ -762,7 +780,7 @@
   transform: translateX(-50%) translateY(14px);
   opacity: 0;
   pointer-events: none;
-  width: min(560px, calc(100% - 2 * var(--gutter)));
+  width: min(600px, calc(100% - 2 * var(--gutter)));
   background: rgba(252, 250, 246, 0.94);
   backdrop-filter: blur(16px) saturate(1.1);
   border: 1px solid var(--line);
@@ -806,6 +824,10 @@
   color: var(--muted);
 }
 
+.transform .panel__close {
+  margin-left: 2px;
+}
+
 .transform__readout {
   font-size: 11px;
   white-space: nowrap;
@@ -816,41 +838,226 @@
   font-variant-numeric: tabular-nums;
 }
 
-.swatches {
-  display: flex;
+/* --- material chips -------------------------------------------------------
+
+   A finish is a material, not a colour value, so the chip is a piece of the
+   wall: the profile's own relief, a raking highlight across it, and the
+   colour under both. Flat circles would say nothing about what the visitor is
+   actually choosing.
+   ------------------------------------------------------------------------- */
+
+.chiprow {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
+  gap: 14px;
 }
 
-.swatches__label {
+.chiprow__label {
   font-size: 10px;
   font-weight: 620;
   letter-spacing: 0.15em;
   text-transform: uppercase;
   color: var(--muted);
-  margin-right: 2px;
+  white-space: nowrap;
 }
 
-.swatch {
+.chiprow__items {
+  display: flex;
+  gap: 7px;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 2px;
+  margin: -2px;
+}
+
+.chiprow__items::-webkit-scrollbar {
+  display: none;
+}
+
+.chip {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  flex: none;
+  padding: 5px 7px 6px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.4);
+  transition:
+    border-color var(--t-fast) var(--ease-out),
+    background var(--t-fast) var(--ease-out),
+    transform var(--t-fast) var(--ease-out);
+}
+
+.chip:hover {
+  border-color: var(--line-strong);
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.chip[data-active='true'] {
+  border-color: var(--navy);
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.chip__text {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--slate);
+  white-space: nowrap;
+  transition: color var(--t-fast) var(--ease-out);
+}
+
+.chip[data-active='true'] .chip__text {
+  color: var(--navy);
+}
+
+/* The chip face. `--chip` is the finish; the profile drives the relief. */
+.chip__face {
+  --chip: #d9d3c6;
+  --chip-accent: #e2dcd0;
   position: relative;
-  width: 27px;
-  height: 27px;
-  border-radius: 50%;
-  border: 1px solid rgba(4, 21, 47, 0.18);
-  transition: transform var(--t-fast) var(--ease-out);
+  width: 52px;
+  height: 32px;
+  flex: none;
+  border-radius: 2px;
+  overflow: hidden;
+  background: var(--chip);
+  box-shadow:
+    inset 0 0 0 1px rgba(4, 21, 47, 0.16),
+    inset 0 -6px 10px -8px rgba(4, 21, 47, 0.7);
 }
 
-.swatch:hover {
-  transform: scale(1.09);
-}
-
-.swatch[data-active='true']::after {
+/* Relief: the shadow line each course or batten throws on the one below. */
+.chip__face::before {
   content: '';
   position: absolute;
-  inset: -5px;
-  border-radius: 50%;
-  border: 1.5px solid var(--navy);
+  inset: 0;
+}
+
+/* A raking highlight, so the chip reads as a lit surface rather than a fill. */
+.chip__face::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    116deg,
+    rgba(255, 255, 255, 0.34) 0%,
+    rgba(255, 255, 255, 0.08) 38%,
+    rgba(4, 21, 47, 0.06) 70%,
+    rgba(4, 21, 47, 0.16) 100%
+  );
+}
+
+.chip__face[data-profile='lap']::before {
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.16) 0px,
+    rgba(255, 255, 255, 0.04) 3px,
+    rgba(4, 21, 47, 0.04) 5px,
+    rgba(4, 21, 47, 0.3) 6px,
+    rgba(4, 21, 47, 0.06) 7px
+  );
+}
+
+.chip__face[data-profile='dutch']::before {
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(4, 21, 47, 0.24) 0px,
+    rgba(255, 255, 255, 0.2) 1.5px,
+    rgba(255, 255, 255, 0.05) 4px,
+    rgba(4, 21, 47, 0.16) 6px,
+    rgba(4, 21, 47, 0.3) 7px
+  );
+}
+
+.chip__face[data-profile='shake']::before {
+  background:
+    repeating-linear-gradient(
+      to right,
+      rgba(4, 21, 47, 0.26) 0px,
+      rgba(4, 21, 47, 0.02) 1px,
+      rgba(255, 255, 255, 0.1) 5px,
+      rgba(4, 21, 47, 0.02) 8px,
+      rgba(4, 21, 47, 0.26) 9px
+    ),
+    repeating-linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0.14) 0px,
+      rgba(255, 255, 255, 0.02) 6px,
+      rgba(4, 21, 47, 0.34) 7.5px,
+      rgba(4, 21, 47, 0.05) 9px
+    );
+}
+
+.chip__face[data-profile='board']::before {
+  background: repeating-linear-gradient(
+    to right,
+    rgba(255, 255, 255, 0.26) 0px,
+    rgba(255, 255, 255, 0.12) 2px,
+    rgba(4, 21, 47, 0.3) 3px,
+    rgba(4, 21, 47, 0.03) 5px,
+    rgba(4, 21, 47, 0.03) 9px,
+    rgba(4, 21, 47, 0.22) 10px
+  );
+}
+
+/* A finish chip carries the colour, with the chosen profile's relief on it. */
+.chip__face--finish {
+  background: linear-gradient(to bottom, var(--chip-accent), var(--chip));
+}
+
+.chip[data-active='true'] .chip__face {
+  box-shadow:
+    inset 0 0 0 1px rgba(4, 21, 47, 0.3),
+    inset 0 -6px 10px -8px rgba(4, 21, 47, 0.7),
+    0 0 0 2px var(--paper),
+    0 0 0 3px var(--navy);
+}
+
+/* --- the project summary and its actions ---------------------------------- */
+
+.studio__foot {
+  display: grid;
+  gap: 12px;
+  padding-top: 13px;
+  border-top: 1px solid var(--line-soft);
+}
+
+/* The specification reads as a line of a written quote, so it keeps its own
+   line rather than being squeezed in beside the buttons. */
+.studio__spec {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  min-width: 0;
+}
+
+.studio__spec-label {
+  font-size: 9.5px;
+  font-weight: 620;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--red);
+  white-space: nowrap;
+  flex: none;
+}
+
+.studio__spec p {
+  font-size: 14px;
+  color: var(--navy);
+  font-weight: 520;
+  letter-spacing: -0.006em;
+}
+
+.studio__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
 }
 
 .slider-native {
@@ -994,18 +1201,19 @@
   .stage__scrim {
     inset: 0 0 auto 0;
     width: 100%;
-    height: 54%;
+    height: 56%;
     background: linear-gradient(
       to bottom,
-      rgba(244, 239, 230, 0.88) 0%,
-      rgba(244, 239, 230, 0.52) 52%,
+      rgba(244, 239, 230, 0.94) 0%,
+      rgba(244, 239, 230, 0.86) 34%,
+      rgba(244, 239, 230, 0.48) 64%,
       rgba(244, 239, 230, 0) 100%
     );
   }
 
   .stage__floor {
-    height: 196px;
-    background: linear-gradient(to top, rgba(244, 239, 230, 0.97) 0%, rgba(244, 239, 230, 0.86) 46%, rgba(244, 239, 230, 0) 100%);
+    height: 180px;
+    background: linear-gradient(to top, rgba(244, 239, 230, 0.96) 0%, rgba(244, 239, 230, 0.66) 44%, rgba(244, 239, 230, 0) 92%);
   }
 
   .hero h1 {
@@ -1087,11 +1295,13 @@
     left: var(--gutter);
     width: auto;
     top: auto;
-    bottom: calc(120px + var(--protobar-h));
+    /* Tucked against the rail rather than floating in the middle, so the top
+       half of the screen stays the thing the card is talking about. */
+    bottom: calc(92px + var(--protobar-h));
     transform: translateY(18px);
-    max-height: 50svh;
+    max-height: 44svh;
     overflow-y: auto;
-    padding: 20px;
+    padding: 18px;
   }
 
   .panel[data-open='true'] {
@@ -1108,14 +1318,79 @@
 
   .transform {
     bottom: calc(96px + var(--protobar-h));
-    padding: 13px 15px;
-    gap: 11px;
+    padding: 12px 14px;
+    gap: 9px;
+    max-height: 54svh;
+    overflow-y: auto;
+  }
+
+  .transform__top {
+    position: sticky;
+    top: 0;
   }
 
   /* The caption is reassurance for a big screen; on a phone it costs two lines
      of a panel that is already sitting on top of the house. */
   .transform__title span {
     display: none;
+  }
+
+  /* The studio keeps its two chip rows on a phone, because they are the point
+     of it — but the rows scroll, the notes go, and the label sits above. */
+  .chiprow {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+  }
+
+  .chiprow__items {
+    mask-image: linear-gradient(to right, #000 0, #000 90%, transparent 100%);
+  }
+
+  .chip {
+    padding: 4px 6px 5px;
+    gap: 5px;
+  }
+
+  .chip__face {
+    width: 36px;
+    height: 23px;
+  }
+
+  .chip__text {
+    font-size: 8.5px;
+    letter-spacing: 0.07em;
+  }
+
+  .studio__spec p {
+    font-size: 13px;
+  }
+
+  .studio__actions .btn,
+  .studio__actions .pillbtn {
+    white-space: nowrap;
+    font-size: 10.5px;
+    padding-inline: 12px;
+  }
+
+  .studio__foot {
+    display: grid;
+    gap: 11px;
+    padding-top: 11px;
+  }
+
+  .studio__actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 7px;
+  }
+
+  /* Leaving the studio is also on the close control and the rail. */
+  .studio__actions > :last-child {
+    display: none;
+  }
+
+  .studio__actions .btn {
+    justify-content: center;
   }
 
   /* Over lawn and shadow the rail needs more weight than a desk screen does. */
@@ -1154,5 +1429,358 @@
 
   .dragcue svg {
     animation: none;
+  }
+}
+
+/* --- inside the wall ------------------------------------------------------- */
+
+/* The stage goes dark, so everything built for porcelain gets out of the way. */
+.stage[data-mode='wall'] .stage__scrim,
+.stage[data-mode='wall'] .stage__sky,
+.stage[data-mode='wall'] .stage__floor,
+.stage[data-mode='wall'] .demotag,
+.stage[data-mode='wall'] .dragcue {
+  opacity: 0;
+}
+
+.stage[data-mode='wall'] .hero__inner {
+  opacity: 0;
+  transform: translateY(-14px);
+  pointer-events: none;
+}
+
+.stage[data-mode='wall'] .rail {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(10px);
+}
+
+.rail {
+  transition:
+    opacity var(--t-mid) var(--ease-out),
+    transform var(--t-mid) var(--ease-out);
+}
+
+/* Covers the half-second where the house leaves and the section arrives. */
+.wallveil {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  visibility: hidden;
+  opacity: 0;
+  background: #04152f;
+}
+
+/* --- the flags on the layers ---------------------------------------------- */
+
+.walllabels {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.walllabel {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 11px 5px 5px;
+  margin: -15px 0 0 -14px;
+  white-space: nowrap;
+  border: 1px solid rgba(233, 240, 252, 0.16);
+  border-radius: 2px;
+  background: rgba(4, 21, 47, 0.62);
+  backdrop-filter: blur(8px);
+  color: rgba(233, 240, 252, 0.88);
+  transition:
+    border-color var(--t-fast) var(--ease-out),
+    background var(--t-fast) var(--ease-out);
+}
+
+.walllabel__no {
+  width: 19px;
+  height: 19px;
+  display: grid;
+  place-items: center;
+  border-radius: 2px;
+  background: rgba(233, 240, 252, 0.1);
+  font-size: 10px;
+  font-weight: 640;
+  font-variant-numeric: tabular-nums;
+}
+
+.walllabel__name {
+  font-size: 10.5px;
+  font-weight: 560;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.walllabel[data-active='true'] {
+  border-color: rgba(200, 16, 46, 0.7);
+  background: rgba(10, 30, 60, 0.82);
+}
+
+.walllabel[data-active='true'] .walllabel__no {
+  background: var(--red);
+  color: #fff;
+}
+
+.walllabel[data-dim='true'] {
+  border-color: rgba(233, 240, 252, 0.07);
+  color: rgba(233, 240, 252, 0.4);
+}
+
+/* --- the inspection panel -------------------------------------------------- */
+
+.wallpanel {
+  position: absolute;
+  right: var(--gutter);
+  top: 50%;
+  z-index: 6;
+  width: 372px;
+  transform: translate(22px, -50%);
+  opacity: 0;
+  pointer-events: none;
+  background: rgba(6, 24, 50, 0.82);
+  backdrop-filter: blur(18px) saturate(1.15);
+  border: 1px solid rgba(233, 240, 252, 0.13);
+  border-radius: 4px;
+  padding: 24px 24px 20px;
+  color: rgba(233, 240, 252, 0.9);
+  box-shadow: 0 30px 70px -34px rgba(0, 0, 0, 0.8);
+  transition:
+    opacity var(--t-mid) var(--ease-out),
+    transform var(--t-mid) var(--ease-out);
+}
+
+.wallpanel[data-open='true'] {
+  opacity: 1;
+  transform: translate(0, -50%);
+  pointer-events: auto;
+}
+
+.wallpanel:focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: 3px;
+}
+
+.wallpanel__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.wallpanel__kicker {
+  font-size: 10px;
+  font-weight: 620;
+  letter-spacing: 0.17em;
+  text-transform: uppercase;
+  color: #ff5f78;
+  margin-bottom: 8px;
+}
+
+.wallpanel h3 {
+  font-family: var(--display);
+  font-size: 27px;
+  letter-spacing: -0.022em;
+  color: #f4f7fd;
+}
+
+.wallpanel .panel__close {
+  border-color: rgba(233, 240, 252, 0.16);
+  color: rgba(233, 240, 252, 0.6);
+}
+
+.wallpanel .panel__close:hover {
+  color: #fff;
+  border-color: rgba(233, 240, 252, 0.4);
+}
+
+.wallpanel__lede {
+  font-size: 13px;
+  line-height: 1.6;
+  color: rgba(233, 240, 252, 0.62);
+}
+
+.walllist {
+  list-style: none;
+  margin: 16px 0 0;
+  padding: 0;
+  border-top: 1px solid rgba(233, 240, 252, 0.1);
+}
+
+.walllist li {
+  border-bottom: 1px solid rgba(233, 240, 252, 0.1);
+}
+
+.walllist__btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 9px 4px;
+  text-align: left;
+  color: inherit;
+  transition: color var(--t-fast) var(--ease-out);
+}
+
+.walllist__no {
+  width: 22px;
+  height: 22px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(233, 240, 252, 0.2);
+  border-radius: 2px;
+  font-size: 10px;
+  font-weight: 640;
+  font-variant-numeric: tabular-nums;
+  color: rgba(233, 240, 252, 0.66);
+  transition:
+    background var(--t-fast) var(--ease-out),
+    border-color var(--t-fast) var(--ease-out),
+    color var(--t-fast) var(--ease-out);
+}
+
+.walllist__text {
+  display: grid;
+  gap: 1px;
+}
+
+.walllist__text b {
+  font-size: 13.5px;
+  font-weight: 580;
+}
+
+.walllist__text span {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(233, 240, 252, 0.44);
+}
+
+.walllist__btn:hover .walllist__no {
+  border-color: rgba(233, 240, 252, 0.44);
+  color: #fff;
+}
+
+.walllist__btn[data-active='true'] .walllist__no {
+  background: var(--red);
+  border-color: var(--red);
+  color: #fff;
+}
+
+.wallpanel__blurb {
+  font-size: 13px;
+  line-height: 1.6;
+  color: rgba(233, 240, 252, 0.74);
+  margin-top: 14px;
+  min-height: 62px;
+}
+
+.wallpanel__foot {
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
+  margin-top: 4px;
+}
+
+.wallpanel__slider {
+  display: grid;
+  gap: 5px;
+  flex: 1;
+  min-width: 0;
+}
+
+.wallpanel__slider .slider-native {
+  accent-color: #ff5f78;
+}
+
+.wallpanel__ticks {
+  display: flex;
+  justify-content: space-between;
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(233, 240, 252, 0.4);
+}
+
+.wallpanel .pillbtn {
+  flex: none;
+  background: transparent;
+  border-color: rgba(233, 240, 252, 0.2);
+  color: rgba(233, 240, 252, 0.88);
+}
+
+.wallpanel .pillbtn:hover {
+  border-color: rgba(233, 240, 252, 0.46);
+  color: #fff;
+}
+
+@media (max-width: 980px) {
+  /* A sheet off the bottom edge, so the section keeps the top of the screen. */
+  .wallpanel {
+    right: 0;
+    left: 0;
+    top: auto;
+    bottom: var(--protobar-h);
+    width: auto;
+    transform: translateY(18px);
+    border-radius: 4px 4px 0 0;
+    border-bottom: none;
+    padding: 18px var(--gutter) 16px;
+  }
+
+  .wallpanel[data-open='true'] {
+    transform: translateY(0);
+  }
+
+  .wallpanel h3 {
+    font-size: 23px;
+  }
+
+  .wallpanel__lede {
+    display: none;
+  }
+
+  .walllist {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    border-top: none;
+    margin-top: 12px;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+  }
+
+  .walllist::-webkit-scrollbar {
+    display: none;
+  }
+
+  .walllist li {
+    border-bottom: none;
+    flex: none;
+  }
+
+  .walllist__btn {
+    border: 1px solid rgba(233, 240, 252, 0.16);
+    border-radius: 2px;
+    padding: 7px 11px 7px 7px;
+  }
+
+  .walllist__text span {
+    display: none;
+  }
+
+  .wallpanel__blurb {
+    min-height: 58px;
+    font-size: 12.5px;
   }
 }

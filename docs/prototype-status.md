@@ -64,6 +64,48 @@ behind the headline.
 The service rail, the numbered hotspots and the keyboard all route through the
 same action, so the camera, the panel and the emphasis can never disagree.
 
+## The siding project studio
+
+Choosing a siding job and seeing it are the same screen, because they are the
+same thing to the person doing it. The studio carries a profile row (lap,
+Dutch lap, shake, board and batten), a finish row, a one-line specification of
+what has been chosen, and the two ways out of it: inside the wall, or on to an
+estimate.
+
+The profile chips are not swatch circles. Each one is a piece of wall with its
+own relief and a raking highlight across it, and the finish chips wear the
+profile currently selected, so the choice is shown in the material rather than
+described in a label. Changing a profile swaps a cached generated texture
+rather than rebuilding anything, so it lands instantly.
+
+Continuing to the estimate carries the specification with it: the form opens
+with siding already selected, the project note already written, and a line at
+the top saying what was brought over. It is a module variable read once and
+cleared — not storage, not a query string — so a reload starts clean and
+nothing about the configuration leaves the browser.
+
+## Inside the wall
+
+From the studio, the property gives way to a one-bay section of exterior wall
+on a dark stage: framing, insulation, sheathing, weather barrier, and siding
+with its trim and window. The layers separate along their own axis, the outer
+ones trailing the inner ones slightly so the stack comes apart in the order it
+was built rather than sliding apart all at once.
+
+Selecting a layer brings it forward and sinks the others back into the stage.
+The panel lists all five in build order with what each one is for; the flags on
+the model and the numbers in the panel come from the same list, so they cannot
+disagree. The panel takes focus when it opens and returns it when it closes,
+Escape steps back one level at a time, and a slider closes the wall back up for
+anyone who would rather not drag. It is not `aria-modal`: the model behind it
+stays live and orbitable, and claiming otherwise would be a lie to a screen
+reader.
+
+The stage is the same scene, the same canvas and the same camera rig as the
+house — the daylight rig fades out, the stage rig comes up, and a veil covers
+the one frame where the two swap. Nothing is torn down and rebuilt, so going in
+and coming back costs nothing.
+
 ## The siding comparison
 
 The before and after are the same house, the same camera, the same light and
@@ -127,17 +169,24 @@ it, so a refresh or a shared link to `/estimate` lands on the right page.
 - Quality drops automatically — pixel ratio first, then shadow map size — if
   frame times slip. On software rendering (a CI container, or a machine with no
   GPU) it will still be slow.
-- The planting, fence and site furniture are stylised low-polygon forms. They
-  read as landscape at the framings used, but they are not the level of the
-  building itself.
+- The planting and site furniture are stylised low-polygon forms. They read as
+  landscape at the framings used, but they are not the level of the building
+  itself. The treeline on the horizon is deliberately coarse: it sits a hundred
+  and twenty metres out and well inside the fog, and exists to stop the lawn
+  meeting the sky along a ruled line. Looked at directly it is still a cluster
+  of lobes, not a tree.
+- The wall assembly is one bay of a 2x6 wall as built here. It is a correct
+  drawing of an ordinary wall, not a specification of any particular job.
 - The house is an archetype, not any real customer's property.
 
 ## Where the next visual pass should go
 
-1. The foliage: better canopy silhouettes, and variation between the four trees.
+1. The projects gallery still shows placeholder tiles. The renderer can produce
+   real stills of this property at any composition; those slots should hold
+   them, labelled as demonstrations exactly as they are now.
 2. The rear elevation — it is correct, but it has had less attention than the
    front and right, which is where every composition currently looks.
-3. Glass: the windows are flat and slightly dull; a touch of reflected sky
-   would lift the whole model.
-4. The lawn reads as a single tone at distance and could use large-scale
-   colour variation.
+3. Garage door relief: the panels are modelled but read flat at overview
+   distance.
+4. Variation between the four foreground trees, which currently share one
+   canopy recipe.

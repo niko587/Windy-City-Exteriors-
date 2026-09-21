@@ -64,18 +64,31 @@ const DAMPING = 0.09;
  * On a phone the headline owns the top of the stage, so the building is
  * pushed into the lower half rather than sitting behind the type.
  */
+/**
+ * Positive pushes the subject down the frame, negative lifts it — the same
+ * convention as the sideways shift, where positive moves it right.
+ */
 function frameShiftY(mode: string, compact: boolean): number {
   if (!compact) return 0;
-  if (mode === 'intro' || mode === 'overview') return -0.09;
-  if (mode === 'explore') return -0.04;
+  // The headline owns the top of a phone screen, so the building sits below
+  // it rather than behind it.
+  if (mode === 'intro' || mode === 'overview') return 0.14;
+  if (mode === 'explore') return 0.05;
+  // The detail card is a bottom sheet, so the subject is lifted clear of it
+  // instead of being explained from behind it.
+  if (mode === 'focus' || mode === 'transform') return -0.1;
   return 0;
 }
 
 function frameShift(mode: string, compact: boolean): number {
+  // A phone is too narrow to move the building sideways without cropping it;
+  // there the copy and the subject are separated vertically instead.
   if (compact) return 0;
   if (mode === 'intro' || mode === 'overview') return 0.15;
   if (mode === 'explore') return 0.06;
   if (mode === 'focus') return -0.11;
+  // The assembly stage has a panel down the right-hand side too.
+  if (mode === 'wall') return -0.13;
   return 0;
 }
 
@@ -94,6 +107,7 @@ export function CameraRig(): null {
   const velocity = useRef({ az: 0, polar: 0 });
   const dragging = useRef(false);
   const lastKey = useRef<string>('');
+  const reported = useRef(-1);
   const shift = useRef(0);
   const shiftY = useRef(0);
 
@@ -121,6 +135,11 @@ export function CameraRig(): null {
     const travelDistance = from.current.target.distanceTo(to.current.target);
     const swing = Math.abs(shortest(from.current.azimuth, to.current.azimuth));
     const effort = travelDistance / 12 + swing / 1.2;
+
+    // Reset before the reduced-motion branch too, or the step filter below
+    // swallows the one progress report a snapped move ever makes and the
+    // panels never learn the move finished.
+    reported.current = -1;
 
     if (reduced) {
       duration.current = 0.001;
@@ -258,7 +277,15 @@ export function CameraRig(): null {
       const arced = 1 + Math.sin(Math.PI * e) * arc.current;
       c.distance = THREE.MathUtils.lerp(f.distance, g.distance, e) * arced;
       c.fov = THREE.MathUtils.lerp(f.fov, g.fov, e);
-      experience.travel(t.current);
+      // Progress is published in steps rather than every frame: two DOM panels
+      // subscribe to it, and re-rendering them sixty times a second during the
+      // one move that has to look smooth is the wrong trade. The travel bar
+      // carries a short transition, so the steps are invisible.
+      const step = t.current >= 1 ? 1 : Math.floor(t.current * 20) / 20;
+      if (step !== reported.current) {
+        reported.current = step;
+        experience.travel(step);
+      }
       if (t.current >= 1 && getState().mode === 'intro') experience.introComplete();
     } else {
       // Damped free orbit.

@@ -35,8 +35,8 @@ export interface Composition {
 function forMobile(c: Composition): Composition {
   return {
     ...c,
-    distance: c.distance * 1.14,
-    fov: Math.min(c.fov + 6, 52),
+    distance: c.distance * 1.3,
+    fov: Math.min(c.fov + 4, 52),
     polar: lerp(c.polar, 1.5, 0.28),
   };
 }
@@ -59,12 +59,20 @@ const compositions = {
   /** Straight up the walk at the portico. */
   doors: { target: [-1.2, 1.82, 1.5], azimuth: 0.22, polar: 1.504, distance: 9.8, fov: 35, travel: 1.7 },
 
-  /** Around the right elevation to the rear deck. */
-  decks: { target: [3.0, 1.15, -10.3], azimuth: 2.48, polar: 1.437, distance: 13.8, fov: 32, travel: 2.4 },
+  /** Around the right elevation to the rear deck, from above the railing
+   *  rather than through it: at deck-rail height the near rail crosses the
+   *  frame and hides the thing the shot is about. */
+  decks: { target: [2.9, 0.95, -10.4], azimuth: 2.44, polar: 1.222, distance: 15.4, fov: 30, travel: 2.4 },
 
-  /** Below the eave, looking up the bay corner where the gutter, the return
-   *  and the downspout all meet. */
-  gutters: { target: [5.2, 4.95, 0.85], azimuth: 0.8, polar: 1.724, distance: 8.4, fov: 38, travel: 1.8 },
+  /** Level with the bay corner where the gutter, the return and the downspout
+   *  all meet. Shot square rather than craned up from the lawn: a steep look
+   *  upward throws every vertical into convergence and the house leans. */
+  gutters: { target: [5.0, 4.85, 0.55], azimuth: 1.06, polar: 1.6, distance: 8.6, fov: 31, travel: 1.8 },
+
+  /** The assembly stage: a three-quarter view down the layers, far enough back
+   *  that the whole separated stack sits inside the frame, low enough to read
+   *  the thickness of each one. */
+  wall: { target: [0, 1.5, 0.35], azimuth: 0.95, polar: 1.412, distance: 9.4, fov: 30, travel: 1.2 },
 } satisfies Record<string, Composition>;
 
 export type CompositionKey = keyof typeof compositions;
@@ -87,7 +95,7 @@ export interface OrbitLimits {
   maxDistance: number;
 }
 
-export const limits: Record<'free' | 'guided' | 'locked', OrbitLimits> = {
+export const limits: Record<'free' | 'guided' | 'locked' | 'stage', OrbitLimits> = {
   free: {
     minPolar: 0.62,
     maxPolar: 1.545,
@@ -112,6 +120,16 @@ export const limits: Record<'free' | 'guided' | 'locked', OrbitLimits> = {
     maxAzimuth: 1.18,
     minDistance: 14,
     maxDistance: 22,
+  },
+  /** The wall assembly: orbit the section freely, but never from behind the
+   *  framing, where the layers would read back to front. */
+  stage: {
+    minPolar: 1.02,
+    maxPolar: 1.6,
+    minAzimuth: 0.14,
+    maxAzimuth: 1.4,
+    minDistance: 5.4,
+    maxDistance: 16,
   },
 };
 

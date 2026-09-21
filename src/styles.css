@@ -354,6 +354,17 @@ textarea {
   border-bottom-color: var(--line-soft);
 }
 
+/* Without this, type scrolling under a solid bar is cut through the middle of
+   a letter at a hard edge. A short fade below the bar lets it dissolve. */
+.header--solid::after {
+  content: '';
+  position: absolute;
+  inset: 100% 0 auto 0;
+  height: 26px;
+  pointer-events: none;
+  background: linear-gradient(to bottom, rgba(244, 239, 230, 0.7), rgba(244, 239, 230, 0));
+}
+
 .header__inner {
   width: var(--shell);
   margin-inline: auto;
@@ -498,6 +509,20 @@ textarea {
   margin-top: 26px;
   display: grid;
   gap: 10px;
+}
+
+/* A phone number broken across two lines stops being a phone number. */
+.mobilenav__actions span,
+.mobilenav__actions a {
+  white-space: nowrap;
+}
+
+/* The links are navigation, the actions are actions: they should not be set
+   in the same 28px serif with nothing between them. */
+.mobilenav__actions a {
+  font-family: var(--ui);
+  font-size: 14px;
+  border-bottom: 0;
 }
 
 @media (max-width: 980px) {

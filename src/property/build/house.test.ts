@@ -1,3 +1,4 @@
+import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { buildProperty } from './house';
 import { bay, bay_ridgeY, garage, garage_ridgeY, main, main_ridgeY, porch_peakY } from './dims';
@@ -23,11 +24,24 @@ describe('the property builds', () => {
   });
 
   it('stays inside a believable envelope for a two-storey suburban house', () => {
-    const { min, max } = built.bounds;
-    // Ridge height, ignoring the lawn plane and the trees.
-    expect(max.y).toBeGreaterThan(main_ridgeY);
-    expect(max.y).toBeLessThan(main_ridgeY + 4.5);
-    expect(min.y).toBeGreaterThanOrEqual(-0.2);
+    // The envelope is the building's, so planting is excluded rather than
+    // merely hoped to be short: a treeline is taller than a house, and the
+    // whole-scene bounds would otherwise be measuring the landscape.
+    const planting = new Set(['lawn', 'mulch', 'shrub', 'foliage', 'bark']);
+    const envelope = new THREE.Box3();
+    for (const [key, g] of built.geometries) {
+      if (planting.has(key)) continue;
+      g.computeBoundingBox();
+      if (g.boundingBox) envelope.union(g.boundingBox);
+    }
+
+    expect(envelope.max.y).toBeGreaterThan(main_ridgeY);
+    expect(envelope.max.y).toBeLessThan(main_ridgeY + 1.5);
+    expect(envelope.min.y).toBeGreaterThanOrEqual(-0.2);
+
+    // Nothing on the site, planting included, towers over the house.
+    expect(built.bounds.max.y).toBeLessThan(main_ridgeY * 2.4);
+    expect(built.bounds.min.y).toBeGreaterThanOrEqual(-0.2);
   });
 
   it('keeps the roof geometry consistent with the walls it sits on', () => {

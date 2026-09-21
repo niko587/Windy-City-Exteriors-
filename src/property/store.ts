@@ -10,8 +10,12 @@
 
 import { useSyncExternalStore } from 'react';
 import type { ServiceFocus } from './services';
+import type { LayerKey } from './wallLayers';
 
-export type ExperienceMode = 'boot' | 'intro' | 'overview' | 'explore' | 'focus' | 'transform';
+export type ExperienceMode = 'boot' | 'intro' | 'overview' | 'explore' | 'focus' | 'transform' | 'wall';
+
+/** The layers of the wall assembly, inside out. Defined with their copy. */
+export type WallLayer = LayerKey;
 
 export interface ExperienceState {
   mode: ExperienceMode;
@@ -36,6 +40,12 @@ export interface ExperienceState {
   quality: 1 | 2 | 3;
   /** Id from `sidingColours.ts`; the renderer repaints when it changes. */
   sidingColour: string;
+  /** Cladding profile id; the renderer swaps the maps when it changes. */
+  sidingProfile: string;
+  /** 0 = the wall is assembled, 1 = the layers are fully separated. */
+  wallSeparation: number;
+  /** The layer being inspected, or null for the whole assembly. */
+  wallLayer: WallLayer | null;
 }
 
 const initial: ExperienceState = {
@@ -52,6 +62,9 @@ const initial: ExperienceState = {
   compact: false,
   quality: 3,
   sidingColour: 'harbor',
+  sidingProfile: 'lap',
+  wallSeparation: 0,
+  wallLayer: null,
 };
 
 let state: ExperienceState = initial;
@@ -115,6 +128,10 @@ export const experience = {
   },
 
   selectFocus(focus: ServiceFocus) {
+    if (state.mode === 'wall') {
+      set({ mode: 'focus', focus, manual: false, traveling: true, progress: 0, wallSeparation: 0, wallLayer: null });
+      return;
+    }
     if (state.mode === 'transform' && focus !== 'siding') {
       set({ mode: 'focus', focus, manual: false, traveling: true, progress: 0 });
       return;
@@ -141,7 +158,15 @@ export const experience = {
 
   reset() {
     if (state.mode === 'overview' && !state.manual && !state.focus) return;
-    set({ mode: 'overview', focus: null, manual: false, traveling: true, progress: 0 });
+    set({
+      mode: 'overview',
+      focus: null,
+      manual: false,
+      traveling: true,
+      progress: 0,
+      wallSeparation: 0,
+      wallLayer: null,
+    });
   },
 
   setSplit(split: number) {
@@ -182,6 +207,52 @@ export const experience = {
     set({ sidingColour });
   },
 
+  setSidingProfile(sidingProfile: string) {
+    set({ sidingProfile });
+  },
+
+  /* -- the wall assembly ------------------------------------------------- */
+
+  /**
+   * Entering separates the layers straight away: an assembled wall on a dark
+   * stage says nothing, and the viewer asked to look inside it.
+   */
+  enterWall() {
+    set({
+      mode: 'wall',
+      focus: null,
+      hovered: null,
+      manual: false,
+      traveling: true,
+      progress: 0,
+      wallSeparation: 1,
+      wallLayer: null,
+    });
+  },
+
+  exitWall() {
+    if (state.mode !== 'wall') return;
+    set({
+      mode: 'transform',
+      focus: 'siding',
+      manual: false,
+      traveling: true,
+      progress: 0,
+      wallSeparation: 0,
+      wallLayer: null,
+    });
+  },
+
+  selectWallLayer(wallLayer: WallLayer | null) {
+    if (state.mode !== 'wall') return;
+    set({ wallLayer, wallSeparation: 1 });
+  },
+
+  /** Closing the assembly is how the viewer sees the layers belong together. */
+  setWallSeparation(wallSeparation: number) {
+    set({ wallSeparation: Math.min(1, Math.max(0, wallSeparation)) });
+  },
+
   /** Used by tests and by remounts. */
   reset_all() {
     state = initial;
@@ -190,15 +261,19 @@ export const experience = {
 };
 
 /** Which orbit envelope applies to the current mode. */
-export function limitKeyFor(s: ExperienceState): 'free' | 'guided' | 'locked' {
+export function limitKeyFor(s: ExperienceState): 'free' | 'guided' | 'locked' | 'stage' {
   if (s.mode === 'transform') return 'locked';
+  if (s.mode === 'wall') return 'stage';
   if (s.mode === 'explore') return 'free';
   return 'guided';
 }
 
 /** Which camera composition the current state asks for. */
-export function compositionKeyFor(s: ExperienceState): 'approach' | 'overview' | 'explore' | ServiceFocus {
+export function compositionKeyFor(
+  s: ExperienceState,
+): 'approach' | 'overview' | 'explore' | 'wall' | ServiceFocus {
   if (s.mode === 'intro') return 'approach';
+  if (s.mode === 'wall') return 'wall';
   if (s.mode === 'explore') return 'explore';
   if (s.mode === 'transform') return 'siding';
   if (s.mode === 'focus' && s.focus) return s.focus;

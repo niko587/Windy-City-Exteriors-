@@ -1,15 +1,22 @@
 /**
- * The siding comparison.
+ * The siding project studio.
  *
- * The drag surface covers the whole stage, the divider is drawn at the same
- * fraction the renderer scissors at, and the finish swatches repaint only the
- * renovated side. There is no `<input type=range>` in the visible control — but
- * there is one, visually hidden and fully operable, so the comparison is
- * reachable by keyboard and by assistive technology without a drag.
+ * The comparison and the configuration are one thing, because they are one
+ * thing to the person using them: the profile and the finish they pick are
+ * what the right-hand side of the divider is wearing, and the summary under
+ * them is the job that gets carried into the estimate.
+ *
+ * The drag surface covers the whole stage and the divider is drawn at the same
+ * fraction the renderer scissors at. There is no `<input type=range>` in the
+ * visible control — but there is one, visually hidden and fully operable, so
+ * none of this needs a drag, a hover or a mouse.
  */
 
 import { useCallback, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
+import { carryToEstimate } from '../estimate/handoff';
 import { SIDING_COLORS } from './sidingColours';
+import { SIDING_PROFILES } from './sidingProfiles';
 import { experience, useExperience } from './store';
 
 function Chevrons(): React.JSX.Element {
@@ -24,6 +31,7 @@ export function BeforeAfter(): React.JSX.Element {
   const open = useExperience((s) => s.mode === 'transform');
   const split = useExperience((s) => s.split);
   const colour = useExperience((s) => s.sidingColour);
+  const profile = useExperience((s) => s.sidingProfile);
   const surface = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
   const root = useRef<HTMLDivElement>(null);
@@ -75,6 +83,10 @@ export function BeforeAfter(): React.JSX.Element {
   // much of the frame is the finished work, which is the other way round.
   const after = Math.round((1 - split) * 100);
 
+  const chosenProfile = SIDING_PROFILES.find((p) => p.id === profile) ?? SIDING_PROFILES[0];
+  const chosenColour = SIDING_COLORS.find((c) => c.id === colour) ?? SIDING_COLORS[0];
+  const specification = `${chosenProfile.name} siding in ${chosenColour.name}`;
+
   return (
     <>
       <div className="compare" data-open={open} data-dragging="false" ref={root} aria-hidden={!open}>
@@ -91,6 +103,9 @@ export function BeforeAfter(): React.JSX.Element {
             className="compare__handle"
             tabIndex={-1}
             aria-hidden="true"
+            /* At the ends there is no seam to grab, and a handle half off the
+               frame reads as a rendering fault rather than a control. */
+            style={{ opacity: split < 0.02 || split > 0.98 ? 0 : 1 }}
             onPointerDown={(e) => {
               e.preventDefault();
               surface.current?.dispatchEvent(new PointerEvent('pointerdown', e.nativeEvent));
@@ -104,16 +119,28 @@ export function BeforeAfter(): React.JSX.Element {
       <div className="transform" data-open={open} aria-hidden={!open}>
         <div className="transform__top">
           <div className="transform__title">
-            <b>Siding replacement</b>
-            <span>Same wall · same light · same camera</span>
+            <b>Siding project studio</b>
+            <span>Front-right elevation · same light, same camera</span>
           </div>
           <div className="transform__readout" aria-hidden="true">
             {after < 4 ? 'Before' : after > 96 ? 'After' : `${after}% after`}
           </div>
+          <button
+            type="button"
+            className="panel__close"
+            tabIndex={open ? 0 : -1}
+            aria-label="Close the siding studio and return to the property"
+            onClick={() => experience.exitTransform()}
+          >
+            <svg width="11" height="11" viewBox="0 0 11 11" aria-hidden="true">
+              <path d="M1 1l9 9M10 1l-9 9" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+            </svg>
+          </button>
         </div>
 
         <label className="sr-only" htmlFor="wce-compare">
-          Comparison position. 0 per cent shows the existing siding, 100 per cent shows the completed replacement.
+          Comparison position. 0 per cent shows the existing siding, 100 per cent shows the completed
+          replacement.
         </label>
         <input
           id="wce-compare"
@@ -128,32 +155,101 @@ export function BeforeAfter(): React.JSX.Element {
           onChange={(e) => experience.setSplit(1 - Number(e.target.value) / 100)}
         />
 
-        <div className="swatches" role="group" aria-label="Replacement siding finish">
-          <span className="swatches__label">Finish</span>
-          {SIDING_COLORS.map((c) => (
+        <div className="chiprow" role="group" aria-label="Siding profile">
+          <span className="chiprow__label">Profile</span>
+          <div className="chiprow__items">
+            {SIDING_PROFILES.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                className="chip"
+                data-active={profile === p.id}
+                aria-pressed={profile === p.id}
+                tabIndex={open ? 0 : -1}
+                aria-label={`${p.name} — ${p.note}`}
+                onClick={() => experience.setSidingProfile(p.id)}
+              >
+                <span className="chip__face" data-profile={p.id} aria-hidden="true" />
+                <span className="chip__text" aria-hidden="true">
+                  {p.name}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="chiprow" role="group" aria-label="Replacement siding finish">
+          <span className="chiprow__label">Finish</span>
+          <div className="chiprow__items">
+            {SIDING_COLORS.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                className="chip chip--finish"
+                data-active={colour === c.id}
+                aria-pressed={colour === c.id}
+                tabIndex={open ? 0 : -1}
+                aria-label={c.name}
+                onClick={() => experience.setSidingColour(c.id)}
+              >
+                <span
+                  className="chip__face chip__face--finish"
+                  data-profile={profile}
+                  aria-hidden="true"
+                  style={
+                    {
+                      '--chip': c.hex,
+                      '--chip-accent': c.accent,
+                    } as React.CSSProperties
+                  }
+                />
+                <span className="chip__text" aria-hidden="true">
+                  {c.name}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="studio__foot">
+          <div className="studio__spec">
+            <span className="studio__spec-label">Your project</span>
+            <p>{specification}, front-right elevation</p>
+          </div>
+          <div className="studio__actions">
             <button
-              key={c.id}
               type="button"
-              className="swatch"
-              data-active={colour === c.id}
-              aria-pressed={colour === c.id}
-              style={{ background: c.hex }}
+              className="pillbtn"
               tabIndex={open ? 0 : -1}
-              aria-label={c.name}
-              onClick={() => experience.setSidingColour(c.id)}
+              onClick={() => experience.enterWall()}
             >
-              <span className="sr-only">{c.name}</span>
+              Look inside the wall
             </button>
-          ))}
-          <button
-            type="button"
-            className="pillbtn"
-            style={{ marginLeft: 'auto' }}
-            tabIndex={open ? 0 : -1}
-            onClick={() => experience.exitTransform()}
-          >
-            Leave comparison
-          </button>
+            <Link
+              className="btn btn--primary btn--sm"
+              to="/estimate"
+              tabIndex={open ? 0 : -1}
+              onClick={() =>
+                carryToEstimate({
+                  serviceIds: ['siding'],
+                  details: `${specification}. Configured on the interactive property, front-right elevation.`,
+                })
+              }
+            >
+              <span>Continue to estimate</span>
+              <span className="btn-arrow" aria-hidden="true">
+                →
+              </span>
+            </Link>
+            <button
+              type="button"
+              className="pillbtn"
+              tabIndex={open ? 0 : -1}
+              onClick={() => experience.exitTransform()}
+            >
+              Leave
+            </button>
+          </div>
         </div>
       </div>
     </>

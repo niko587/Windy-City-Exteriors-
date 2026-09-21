@@ -102,7 +102,9 @@ export const site = {
   walkW: 1.4,
   walkZEnd: 5.6,
   bedDepth: 1.35,
-  lawn: 150,
+  // Wider than the fog can carry (58-178 m), so the ground hazes into the
+  // sky instead of ending on a ruled line at the edge of a plane.
+  lawn: 340,
 } as const;
 
 /** Gutter profile. */

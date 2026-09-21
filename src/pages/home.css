@@ -323,7 +323,10 @@
 
 .srv__row {
   display: grid;
-  grid-template-columns: 82px 1.05fr 1fr;
+  /* The middle column only ever holds a name and two short lines; given equal
+     width to the specification column it leaves a dead gutter down the middle
+     of eight consecutive rows. */
+  grid-template-columns: 82px minmax(0, 0.82fr) minmax(0, 1.18fr);
   gap: clamp(20px, 3.5vw, 56px);
   padding: clamp(34px, 4vw, 54px) 0;
   border-bottom: 1px solid var(--line);
@@ -470,12 +473,38 @@
   min-height: 340px;
 }
 
+.shot__img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* A render arriving late should not flash the gradient away. */
+  animation: shot-in 620ms var(--ease-out) both;
+}
+
+@keyframes shot-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 .shot__art {
   position: absolute;
   inset: 0;
-  background:
-    linear-gradient(180deg, rgba(252, 250, 246, 0) 40%, rgba(252, 250, 246, 0.94) 100%),
-    var(--shot-bg, linear-gradient(150deg, #dfe4ec, #c9ccc6));
+  background: var(--shot-bg, linear-gradient(150deg, #dfe4ec, #c9ccc6));
+}
+
+/* The caption sits on the art, so the scrim has to sit on top of whatever the
+   art turns out to be — the gradient placeholder or a render. */
+.shot__art::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(252, 250, 246, 0) 38%, rgba(252, 250, 246, 0.95) 100%);
 }
 
 .shot__art svg {
@@ -651,6 +680,13 @@
 .pagehead__inner {
   display: grid;
   gap: 20px;
+  /* `.shell` centres its own width, so capping this at 800px used to centre
+     an 800px block in the viewport and push the heading 240px right of the
+     logo, the step rail and the footer. Cap the measure, not the block. */
+  max-width: none;
+}
+
+.pagehead__inner > * {
   max-width: 800px;
 }
 

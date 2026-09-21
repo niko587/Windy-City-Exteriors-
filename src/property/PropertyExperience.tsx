@@ -14,6 +14,7 @@ import { FocusPanel } from './FocusPanel';
 import { PropertyFallback } from './PropertyFallback';
 import { ServiceControls } from './ServiceControls';
 import { ServiceHotspots } from './ServiceHotspots';
+import { WallInspector, WallLabels, WallVeil } from './WallInspector';
 import { experience, useExperience } from './store';
 import './property.css';
 
@@ -162,6 +163,9 @@ export function PropertyExperience(): React.JSX.Element {
       <ServiceHotspots />
       <FocusPanel />
       <BeforeAfter />
+      <WallVeil />
+      <WallLabels />
+      <WallInspector />
       {supported && !failed && <DragCue />}
 
       <p className="demotag">

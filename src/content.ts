@@ -227,13 +227,23 @@ export const services: Service[] = [
 
 export const serviceById = (id: string): Service | undefined => services.find((s) => s.id === id);
 
-export const gallerySlots: { id: string; service: ServiceId; title: string; view: FocusId | 'overview'; size: 'wide' | 'tall' | 'std' }[] = [
-  { id: 'g1', service: 'siding', title: 'Whole-elevation siding', view: 'overview', size: 'wide' },
-  { id: 'g2', service: 'windows', title: 'Window replacement and trim', view: 'windows', size: 'std' },
-  { id: 'g3', service: 'doors', title: 'Entry door and porch', view: 'doors', size: 'tall' },
-  { id: 'g4', service: 'decks', title: 'Rear deck and stairs', view: 'decks', size: 'std' },
-  { id: 'g5', service: 'gutters', title: 'Gutters and downspouts', view: 'gutters', size: 'std' },
-  { id: 'g6', service: 'siding', title: 'Siding, corners and trim detail', view: 'siding', size: 'wide' },
+/** `still` names a render in `public/renders`, captured from this same model
+ *  by `scripts/capture-stills.mjs`. A slot without one falls back to its
+ *  gradient, so the gallery never shows a broken image. */
+export const gallerySlots: {
+  id: string;
+  service: ServiceId;
+  title: string;
+  view: FocusId | 'overview';
+  size: 'wide' | 'tall' | 'std';
+  still?: string;
+}[] = [
+  { id: 'g1', service: 'siding', title: 'Whole-elevation siding', view: 'overview', size: 'wide', still: 'overview' },
+  { id: 'g2', service: 'windows', title: 'Window replacement and trim', view: 'windows', size: 'std', still: 'windows' },
+  { id: 'g3', service: 'doors', title: 'Entry door and porch', view: 'doors', size: 'tall', still: 'doors' },
+  { id: 'g4', service: 'decks', title: 'Rear deck and stairs', view: 'decks', size: 'std', still: 'decks' },
+  { id: 'g5', service: 'gutters', title: 'Gutters and downspouts', view: 'gutters', size: 'std', still: 'gutters' },
+  { id: 'g6', service: 'siding', title: 'Siding, corners and trim detail', view: 'siding', size: 'wide', still: 'siding' },
 ];
 
 export const navLinks = [

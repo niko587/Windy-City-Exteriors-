@@ -14,11 +14,19 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { CameraRig } from './CameraRig';
 import { buildProperty } from './build/house';
-import { createMaterials, setRenovation, setSidingColour, type HouseMaterials } from './materials/materials';
-import { studioEnvironment } from './materials/textures';
+import {
+  createMaterials,
+  setRenovation,
+  setSidingColour,
+  setSidingProfile,
+  type HouseMaterials,
+} from './materials/materials';
+import { studioEnvironment, type SidingProfile } from './materials/textures';
 import { projected } from './hotspotProjection';
 import { hotspots } from './services';
 import { experience, getState, useExperience } from './store';
+import { WallAssembly } from './WallAssembly';
+import { stagePresence } from './wallLayers';
 
 const SUN = new THREE.Vector3(15.5, 19, 14.5);
 
@@ -35,9 +43,14 @@ function Backdrop(): React.JSX.Element {
         depthWrite: false,
         fog: false,
         uniforms: {
-          uHigh: { value: new THREE.Color('#c8d5e6').convertSRGBToLinear() },
-          uHorizon: { value: new THREE.Color('#f6f1e8').convertSRGBToLinear() },
-          uLow: { value: new THREE.Color('#ded7c9').convertSRGBToLinear() },
+          uHigh: { value: new THREE.Color('#9fb8da').convertSRGBToLinear() },
+          uHorizon: { value: new THREE.Color('#f7f2ea').convertSRGBToLinear() },
+          uLow: { value: new THREE.Color('#e4ddd0').convertSRGBToLinear() },
+          // The daylight sky drains to a studio navy as the wall stage takes over.
+          uStageHigh: { value: new THREE.Color('#050f1e').convertSRGBToLinear() },
+          uStageHorizon: { value: new THREE.Color('#102943').convertSRGBToLinear() },
+          uStageLow: { value: new THREE.Color('#03080f').convertSRGBToLinear() },
+          uStage: { value: 0 },
         },
         vertexShader: `
           varying vec3 vDir;
@@ -47,18 +60,29 @@ function Backdrop(): React.JSX.Element {
           }`,
         fragmentShader: `
           uniform vec3 uHigh; uniform vec3 uHorizon; uniform vec3 uLow;
+          uniform vec3 uStageHigh; uniform vec3 uStageHorizon; uniform vec3 uStageLow;
+          uniform float uStage;
           varying vec3 vDir;
           void main() {
             float h = vDir.y;
+            vec3 high = mix(uHigh, uStageHigh, uStage);
+            vec3 horizon = mix(uHorizon, uStageHorizon, uStage);
+            vec3 low = mix(uLow, uStageLow, uStage);
             vec3 c = h > 0.0
-              ? mix(uHorizon, uHigh, pow(clamp(h * 1.9, 0.0, 1.0), 0.78))
-              : mix(uHorizon, uLow, pow(clamp(-h * 3.0, 0.0, 1.0), 0.9));
+              ? mix(horizon, high, pow(clamp(h * 1.35, 0.0, 1.0), 0.62))
+              : mix(horizon, low, pow(clamp(-h * 3.4, 0.0, 1.0), 0.95));
+            // A little extra warmth low in the west, where the sun sits.
+            float glow = smoothstep(0.55, 1.0, dot(normalize(vec3(vDir.x, 0.0, vDir.z)), vec3(0.72, 0.0, 0.69)));
+            c += glow * (1.0 - abs(h)) * vec3(0.045, 0.026, 0.004) * (1.0 - uStage);
             gl_FragColor = vec4(c, 1.0);
           }`,
       }),
     [],
   );
   useEffect(() => () => material.dispose(), [material]);
+  useFrame(() => {
+    material.uniforms.uStage.value = stagePresence.value;
+  });
   return (
     <mesh scale={400} renderOrder={-1} frustumCulled={false}>
       <sphereGeometry args={[1, 24, 16]} />
@@ -76,6 +100,7 @@ const NO_SHADOW = new Set(['lawn', 'flatwork', 'mulch']);
 function Property({ onBuilt }: { onBuilt: (triangles: number) => void }): React.JSX.Element {
   const gl = useThree((s) => s.gl);
   const scene = useThree((s) => s.scene);
+  const root = useRef<THREE.Group>(null);
 
   const { geometries, materials, triangles } = useMemo(() => {
     const env = studioEnvironment(gl);
@@ -96,8 +121,15 @@ function Property({ onBuilt }: { onBuilt: (triangles: number) => void }): React.
     [geometries],
   );
 
+  // The house leaves as the stage arrives; the swap happens behind the veil,
+  // at the moment it is fully opaque.
+  useFrame(() => {
+    const g = root.current;
+    if (g) g.visible = stagePresence.value < 0.5;
+  });
+
   return (
-    <group>
+    <group ref={root}>
       {[...geometries.entries()].map(([key, geometry]) => {
         const material = materials[key];
         if (!material) return null;
@@ -120,8 +152,10 @@ function Property({ onBuilt }: { onBuilt: (triangles: number) => void }): React.
    ------------------------------------------------------------------------- */
 
 function Lighting({ quality }: { quality: 1 | 2 | 3 }): React.JSX.Element {
+  const gl = useThree((s) => s.gl);
   const sun = useRef<THREE.DirectionalLight>(null);
-  const size = quality === 3 ? 2048 : quality === 2 ? 1536 : 1024;
+  const rig = useRef<THREE.Group>(null);
+  const size = quality === 3 ? 3072 : quality === 2 ? 2048 : 1024;
 
   useEffect(() => {
     const l = sun.current;
@@ -136,28 +170,53 @@ function Lighting({ quality }: { quality: 1 | 2 | 3 }): React.JSX.Element {
     c.near = 6;
     c.far = 72;
     c.updateProjectionMatrix();
-    l.shadow.bias = -0.0007;
-    l.shadow.normalBias = 0.035;
+    l.shadow.bias = -0.0004;
+    l.shadow.normalBias = 0.028;
     l.target.position.set(-1, 2, -3);
     l.target.updateMatrixWorld();
-  }, [size]);
+    // The map is only ever resized during a shadow render, and shadow renders
+    // are frozen. Asking for one here — after React has written the new map
+    // size, and before the next frame — is what makes a quality drop actually
+    // release the old render target instead of leaving the filter reading a
+    // texel size the texture no longer has.
+    gl.shadowMap.needsUpdate = true;
+  }, [gl, size]);
+
+  // Daylight has no business on the assembly stage, so the whole rig dims out
+  // of it rather than being switched off at a threshold.
+  useFrame(() => {
+    const g = rig.current;
+    if (!g) return;
+    const daylight = 1 - stagePresence.value;
+    g.visible = daylight > 0.004;
+    for (const child of g.children) {
+      if (!(child instanceof THREE.Light)) continue;
+      const light = child as THREE.Light & { userData: { base?: number } };
+      if (light.userData.base === undefined) light.userData.base = light.intensity;
+      light.intensity = light.userData.base * daylight;
+    }
+  });
 
   return (
-    <>
-      <hemisphereLight args={['#cfe0f5', '#b0a288', 0.52]} />
+    <group ref={rig}>
+      {/* Sky and ground bounce. Carries the shadow side, so the dark faces stay
+          readable without flattening the whole model. */}
+      <hemisphereLight args={['#c4d8f4', '#a99a7e', 0.56]} />
       <directionalLight
         ref={sun}
         position={[SUN.x, SUN.y, SUN.z]}
-        intensity={2.45}
-        color="#fff3e2"
+        intensity={2.32}
+        color="#fff1dd"
         castShadow
         shadow-mapSize-width={size}
         shadow-mapSize-height={size}
       />
-      {/* Bounce from the lawn and the driveway, no shadow cost. */}
-      <directionalLight position={[-14, 7, -16]} intensity={0.38} color="#dfe6f2" />
-      <directionalLight position={[-6, 2.5, 20]} intensity={0.22} color="#fdf3e4" />
-    </>
+      {/* Bounce from the lawn and the driveway, no shadow cost. The rear one
+          separates the roof from the sky; the front one opens up the eaves. */}
+      <directionalLight position={[-14, 7, -16]} intensity={0.42} color="#dbe4f4" />
+      <directionalLight position={[-6, 2.5, 20]} intensity={0.26} color="#fdf3e4" />
+      <directionalLight position={[2, 14, -22]} intensity={0.2} color="#eef3ff" />
+    </group>
   );
 }
 
@@ -186,17 +245,16 @@ function StaticShadows(): null {
    ------------------------------------------------------------------------- */
 
 function SplitRenderer(): null {
-  const split = useExperience((s) => s.split);
-  const active = useExperience((s) => s.mode === 'transform');
-  const ref = useRef({ split, active });
-  ref.current = { split, active };
-
   useFrame(({ gl, scene, camera, size }) => {
-    const dpr = gl.getPixelRatio();
-    const w = Math.max(1, Math.round(size.width * dpr));
-    const h = Math.max(1, Math.round(size.height * dpr));
+    const { split, mode } = getState();
+    // Logical pixels, not device pixels: three multiplies the viewport and the
+    // scissor by the pixel ratio itself. Passing device pixels here scales the
+    // frame by the ratio squared, which is invisible at dpr 1 and wrecks the
+    // comparison on every retina screen.
+    const w = size.width;
+    const h = size.height;
 
-    if (!ref.current.active) {
+    if (mode !== 'transform') {
       setRenovation(1);
       gl.setScissorTest(false);
       gl.setViewport(0, 0, w, h);
@@ -205,7 +263,7 @@ function SplitRenderer(): null {
       return;
     }
 
-    const x = Math.round(THREE.MathUtils.clamp(ref.current.split, 0, 1) * w);
+    const x = THREE.MathUtils.clamp(split, 0, 1) * w;
     gl.setViewport(0, 0, w, h);
     gl.setScissorTest(false);
     gl.autoClear = true;
@@ -235,23 +293,30 @@ function SplitRenderer(): null {
    Adaptive quality — drop resolution before dropping frames.
    ------------------------------------------------------------------------- */
 
+/** `?stills=1` pins full quality for the gallery capture in `scripts/`. */
+function pinnedQuality(): boolean {
+  return typeof location !== 'undefined' && location.search.includes('stills');
+}
+
 function Quality(): null {
-  const gl = useThree((s) => s.gl);
   const samples = useRef<number[]>([]);
   const level = useRef<1 | 2 | 3>(3);
   const settled = useRef(0);
 
   useFrame((_, delta) => {
+    if (pinnedQuality()) return;
     settled.current += 1;
     if (settled.current < 40) return; // ignore warm-up and shader compilation
-    samples.current.push(delta);
+    // Clamped, or one tab switch or one long garbage collection poisons the
+    // mean and downgrades the session permanently for no reason.
+    samples.current.push(Math.min(delta, 0.05));
     if (samples.current.length < 60) return;
     const avg = samples.current.reduce((a, b) => a + b, 0) / samples.current.length;
     samples.current.length = 0;
+    // Resolution follows `quality` through the canvas rather than being set on
+    // the renderer here, so a resize cannot quietly restore it.
     if (avg > 0.026 && level.current > 1) {
       level.current = (level.current - 1) as 1 | 2;
-      gl.setPixelRatio(level.current === 2 ? Math.min(devicePixelRatio, 1.25) : 1);
-      gl.shadowMap.needsUpdate = true;
       experience.setQuality(level.current);
     }
   });
@@ -287,10 +352,12 @@ function HotspotProjector(): null {
   return null;
 }
 
-/** The finish chosen in the comparison panel repaints the renovated cladding. */
+/** The finish and profile chosen in the studio repaint the renovated cladding. */
 function Finish(): null {
   const colour = useExperience((s) => s.sidingColour);
+  const profile = useExperience((s) => s.sidingProfile);
   useEffect(() => setSidingColour(colour), [colour]);
+  useEffect(() => setSidingProfile(profile as SidingProfile), [profile]);
   return null;
 }
 
@@ -323,7 +390,7 @@ export default function PropertyScene({ onBuilt }: PropertySceneProps): React.JS
   return (
     <Canvas
       shadows
-      dpr={[1, 1.75]}
+      dpr={quality === 3 ? [1, 1.75] : quality === 2 ? [1, 1.25] : 1}
       gl={{
         antialias: true,
         powerPreference: 'high-performance',
@@ -333,8 +400,8 @@ export default function PropertyScene({ onBuilt }: PropertySceneProps): React.JS
       camera={{ fov: 20, near: 0.6, far: 420, position: [24, 9, 34] }}
       onCreated={({ gl, scene, camera }) => {
         gl.toneMapping = THREE.ACESFilmicToneMapping;
-        gl.toneMappingExposure = 1.02;
-        scene.fog = new THREE.Fog(new THREE.Color('#f2ece1'), 62, 190);
+        gl.toneMappingExposure = 1.03;
+        scene.fog = new THREE.Fog(new THREE.Color('#eee8dc'), 58, 178);
         camera.lookAt(0, 3, -2);
         gl.domElement.tabIndex = 0;
         gl.domElement.setAttribute('aria-label', 'Interactive property model. Drag to orbit, arrow keys to rotate.');
@@ -347,6 +414,7 @@ export default function PropertyScene({ onBuilt }: PropertySceneProps): React.JS
       <Backdrop />
       <Lighting quality={quality} />
       <Property onBuilt={onBuilt} />
+      <WallAssembly />
       <StaticShadows />
       <CameraRig />
       <SplitRenderer />

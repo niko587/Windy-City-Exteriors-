@@ -10,6 +10,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { company, customers, services, type ServiceId } from '../content';
+import { takeHandoff } from './handoff';
 import {
   MAX_PHOTOS,
   MAX_PHOTO_BYTES,
@@ -35,7 +36,13 @@ const METHODS: { id: EstimateDraft['method']; label: string; note: string }[] = 
 
 export function EstimateWizard(): React.JSX.Element {
   const [step, setStep] = useState<StepIndex>(0);
-  const [draft, setDraft] = useState<EstimateDraft>(emptyDraft);
+  // A configuration carried over from the siding studio starts the form where
+  // the visitor already got to, and says so rather than leaving them to find it
+  // two steps later. Read once, so a reload starts clean.
+  const [carried] = useState(takeHandoff);
+  const [draft, setDraft] = useState<EstimateDraft>(() =>
+    carried ? { ...emptyDraft, ...carried } : emptyDraft,
+  );
   const [errors, setErrors] = useState<Errors>({});
   const [reached, setReached] = useState(0);
   const [done, setDone] = useState(false);
@@ -209,6 +216,13 @@ export function EstimateWizard(): React.JSX.Element {
           );
         })}
       </nav>
+
+      {carried && (
+        <p className="wiz__carried">
+          <b>Carried over</b>
+          {carried.details}
+        </p>
+      )}
 
       <div className="wiz__panel">
         {/* --- 1. property ------------------------------------------------- */}

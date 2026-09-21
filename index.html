@@ -11,6 +11,23 @@
     />
     <link rel="icon" type="image/png" href="/brand/wce-mark.png" />
     <title>Windy City Exteriors — Prototype</title>
+    <script>
+      /* Restores the path that 404.html encoded, before the app mounts, so a
+         refreshed or shared deep link shows the address the visitor expects. */
+      (function () {
+        var l = window.location;
+        if (l.search[1] === '/') {
+          var decoded = l.search
+            .slice(1)
+            .split('&')
+            .map(function (part) {
+              return part.replace(/~and~/g, '&');
+            })
+            .join('?');
+          window.history.replaceState(null, '', l.pathname.slice(0, -1) + decoded + l.hash);
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

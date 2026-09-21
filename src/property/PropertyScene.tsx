@@ -389,7 +389,11 @@ export default function PropertyScene({ onBuilt }: PropertySceneProps): React.JS
 
   return (
     <Canvas
-      shadows
+      /* R3F's bare `shadows` asks for PCFSoftShadowMap, which this version of
+         three has removed; it silently falls back to PCF and warns three
+         times a session. Asking for what we actually get is quieter and no
+         different on screen. */
+      shadows={{ type: THREE.PCFShadowMap }}
       dpr={quality === 3 ? [1, 1.75] : quality === 2 ? [1, 1.25] : 1}
       gl={{
         antialias: true,

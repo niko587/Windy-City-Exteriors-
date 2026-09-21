@@ -30,7 +30,7 @@ import { experience, getState, useExperience } from './store';
 import { WallAssembly } from './WallAssembly';
 import { stagePresence } from './wallLayers';
 
-const SUN = new THREE.Vector3(15.5, 19, 14.5);
+const SUN = new THREE.Vector3(7, 15, 19);
 
 /* -------------------------------------------------------------------------
    Backdrop: the sky the house is actually lit by.
@@ -195,11 +195,11 @@ function Lighting({ quality }: { quality: 1 | 2 | 3 }): React.JSX.Element {
   return (
     <group ref={rig}>
       {/* Sky and ground bounce. */}
-      <hemisphereLight args={['#bcd3f2', '#9d8f74', 0.34]} />
+      <hemisphereLight args={['#bcd3f2', '#9d8f74', 0.3]} />
       <directionalLight
         ref={sun}
         position={[SUN.x, SUN.y, SUN.z]}
-        intensity={3.35}
+        intensity={5.6}
         color="#fff2de"
         castShadow
         shadow-mapSize-width={size}
@@ -433,7 +433,7 @@ export default function PropertyScene({ onBuilt }: PropertySceneProps): React.JS
         // than as distance. The colour below tone-maps to roughly what the
         // dome renders just above the horizon, and the range starts past the
         // property line so the site itself is never touched.
-        scene.fog = new THREE.Fog(new THREE.Color('#c3d4e8'), 75, 215);
+        scene.fog = new THREE.Fog(new THREE.Color('#c3d4e8'), 100, 265);
         camera.lookAt(0, 3, -2);
         gl.domElement.tabIndex = 0;
         gl.domElement.setAttribute('aria-label', 'Interactive property model. Drag to orbit, arrow keys to rotate.');

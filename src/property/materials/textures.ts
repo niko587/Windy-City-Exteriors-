@@ -880,7 +880,7 @@ export function deckMaps(): { map: THREE.Texture; normalMap: THREE.Texture } {
    ------------------------------------------------------------------------- */
 
 /** Matches the key light in `PropertyScene`; the sun must be in one place. */
-export const SUN_DIRECTION = new THREE.Vector3(15.5, 19, 14.5).normalize();
+export const SUN_DIRECTION = new THREE.Vector3(7, 15, 19).normalize();
 
 /**
  * Uniforms for `SKY_GLSL`. A fresh object per material, because three writes

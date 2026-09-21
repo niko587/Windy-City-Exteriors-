@@ -218,6 +218,16 @@ changed.
 - **A light rig that is not three lamps.** VSM shadows with a real penumbra, a
   hemisphere light carrying sky above and warm bounce below, and a key warm
   enough to read as sun rather than as a lamp.
+- **A sun that is off the camera axis.** It used to sit almost behind the
+  viewer, which lights every visible face of a building equally and is the
+  one thing no photograph ever looks like: a house with no shaded side reads
+  as a model whatever else is right about it. The sun now comes over the
+  front left at about forty degrees, so the entry elevation is lit, the right
+  elevation falls into sky-blue shade at roughly a fifth of it, the porch roof
+  throws onto the wall behind it and the eaves draw a line across the gable.
+  The key was also raised against the sky and the hemisphere fill lowered:
+  outdoors the sun beats the sky by something like five to one, and the rig
+  was running closer to one to one, which is overcast.
 
 ## Where the next visual pass should go
 

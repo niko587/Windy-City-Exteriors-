@@ -215,17 +215,26 @@ export function entryUnit(
     box(w, 0.05, JAMB_D, { at: [u, y + h - 0.025, -JAMB_D / 2] }),
   );
 
-  // Sidelights.
+  // Sidelights. The sash is a frame, not a panel: a solid box the full width
+  // of the sidelight covers the glass behind it completely, which is what was
+  // happening here — two painted slabs either side of the door.
   for (const side of [-1, 1]) {
     const sx = u + side * (doorW / 2 + 0.06 + sideW / 2);
+    const lh = h - 0.3;
+    const ly = y + 0.15 + lh / 2;
+    const stile = 0.035;
+    const rail = 0.05;
     p.add(
       'sash',
-      box(sideW, h - 0.3, 0.05, { at: [sx, y + 0.15 + (h - 0.3) / 2, -0.05] }),
+      box(stile, lh, 0.05, { at: [sx - sideW / 2 + stile / 2, ly, -0.05] }),
+      box(stile, lh, 0.05, { at: [sx + sideW / 2 - stile / 2, ly, -0.05] }),
+      box(sideW, rail, 0.05, { at: [sx, ly + lh / 2 - rail / 2, -0.05] }),
+      box(sideW, rail, 0.05, { at: [sx, ly - lh / 2 + rail / 2, -0.05] }),
       box(0.06, h, 0.06, { at: [sx - side * (sideW / 2 + 0.03), cy, -0.03] }),
     );
-    p.add('glass', box(sideW - 0.07, h - 0.42, 0.012, { at: [sx, y + 0.15 + (h - 0.3) / 2, -0.075] }));
+    p.add('glass', box(sideW - stile * 2, lh - rail * 2, 0.012, { at: [sx, ly, -0.075] }));
     for (let i = 1; i < 4; i++) {
-      p.add('sash', box(sideW - 0.06, MUNTIN, 0.026, { at: [sx, y + 0.15 + ((h - 0.3) * i) / 4, -0.062] }));
+      p.add('sash', box(sideW - stile * 2, MUNTIN, 0.026, { at: [sx, y + 0.15 + (lh * i) / 4, -0.062] }));
     }
     p.add('trim', box(sideW * 0.9, 0.09, 0.05, { at: [sx, y + 0.1, -0.03] }));
   }
@@ -252,15 +261,29 @@ export function entryUnit(
 
   casing(p, u, y, w, h);
 
-  // Carriage light beside the door.
+  // Carriage light beside the door: a lantern is a cage with glass in it, so
+  // the body is four corner posts rather than a solid block wrapped around a
+  // pane nobody can see.
   const lx = u + w / 2 + 0.42;
+  const lc = 0.13;
+  const post = 0.022;
   p.add(
     'hardware',
     box(0.1, 0.1, 0.05, { at: [lx, y + 1.62, 0.025] }),
-    box(0.13, 0.26, 0.13, { at: [lx, y + 1.86, 0.09] }),
+    box(lc + 0.01, 0.035, lc + 0.01, { at: [lx, y + 1.735, 0.09] }),
     box(0.17, 0.035, 0.17, { at: [lx, y + 2.0, 0.09] }),
   );
-  p.add('glass', box(0.1, 0.2, 0.1, { at: [lx, y + 1.86, 0.09] }));
+  for (const dx of [-1, 1]) {
+    for (const dz of [-1, 1]) {
+      p.add(
+        'hardware',
+        box(post, 0.24, post, {
+          at: [lx + (dx * (lc - post)) / 2, y + 1.865, 0.09 + (dz * (lc - post)) / 2],
+        }),
+      );
+    }
+  }
+  p.add('glass', box(lc - post, 0.225, lc - post, { at: [lx, y + 1.865, 0.09] }));
 }
 
 /** Sliding patio door onto the deck. */
@@ -298,22 +321,38 @@ export function garageDoorUnit(p: Parts, opts: { u: number; y: number; w: number
   for (let s = 0; s < sections; s++) {
     const sy = y + (h * (s + 0.5)) / sections;
     const sh = h / sections;
+    // The top section is glazed, so it gets lights rather than raised panels.
+    const glazed = s === sections - 1;
     for (let c = 0; c < cols; c++) {
       const px = u - w / 2 + (w * (c + 0.5)) / cols;
       const pw = w / cols - 0.11;
+      if (!glazed) {
+        p.add(
+          'garageDoor',
+          box(pw, sh - 0.11, 0.022, { at: [px, sy, sz + 0.038] }),
+          box(pw - 0.075, sh - 0.185, 0.032, { at: [px, sy, sz + 0.042] }),
+        );
+        continue;
+      }
+      // A light: glass just behind the door face, inside its own frame. The
+      // slab spans sz ± 0.03, so glazing set at sz - 0.02 — which is where it
+      // was — is buried inside the door and can never be seen.
+      const gw = pw - 0.02;
+      const gh = sh - 0.14;
+      const fr = 0.026;
+      p.add('glass', box(gw, gh, 0.01, { at: [px, sy, sz + 0.03] }));
       p.add(
         'garageDoor',
-        box(pw, sh - 0.11, 0.022, { at: [px, sy, sz + 0.038] }),
-        box(pw - 0.075, sh - 0.185, 0.032, { at: [px, sy, sz + 0.042] }),
+        box(gw + fr * 2, fr, 0.03, { at: [px, sy + gh / 2 + fr / 2, sz + 0.036] }),
+        box(gw + fr * 2, fr, 0.03, { at: [px, sy - gh / 2 - fr / 2, sz + 0.036] }),
+        box(fr, gh, 0.03, { at: [px - gw / 2 - fr / 2, sy, sz + 0.036] }),
+        box(fr, gh, 0.03, { at: [px + gw / 2 + fr / 2, sy, sz + 0.036] }),
       );
     }
-    // Section joint shadow line.
-    if (s > 0) p.add('hardware', box(w, 0.014, 0.018, { at: [u, y + (h * s) / sections, sz + 0.034] }));
-  }
-  // Glazed top section.
-  for (let c = 0; c < cols; c++) {
-    const px = u - w / 2 + (w * (c + 0.5)) / cols;
-    p.add('glass', box(w / cols - 0.13, h / sections - 0.2, 0.012, { at: [px, y + h - h / sections / 2, sz - 0.02] }));
+    // Section joint. It sits in the recess between the raised panels, not
+    // proud of them: a bright sliver a pixel tall on the face of the door
+    // aliases into a dashed line rather than reading as a joint.
+    if (s > 0) p.add('hardware', box(w, 0.022, 0.016, { at: [u, y + (h * s) / sections, sz + 0.02] }));
   }
   // Jambs and head trim around the opening.
   p.add(

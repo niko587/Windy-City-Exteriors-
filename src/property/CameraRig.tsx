@@ -76,7 +76,13 @@ function frameShiftY(mode: string, compact: boolean): number {
   if (mode === 'explore') return 0.05;
   // The detail card is a bottom sheet, so the subject is lifted clear of it
   // instead of being explained from behind it.
-  if (mode === 'focus' || mode === 'transform') return -0.1;
+  if (mode === 'focus') return -0.1;
+  // The studio sheet is the tallest of the cards, so the elevation being
+  // compared needs every pixel above it that the frame can give.
+  if (mode === 'transform') return -0.17;
+  // The assembly panel is the tallest sheet of the lot, and the flags sit
+  // above the wall, so the stack needs more room than a focus card does.
+  if (mode === 'wall') return -0.19;
   return 0;
 }
 

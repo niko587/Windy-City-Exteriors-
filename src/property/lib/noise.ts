@@ -20,7 +20,14 @@ function hash3(x: number, y: number, z: number): number {
 const fade = (t: number) => t * t * (3 - 2 * t);
 const mix = (a: number, b: number, t: number) => a + (b - a) * t;
 
-/** 3D value noise in [0, 1]. */
+/**
+ * 3D value noise in [0, 1].
+ *
+ * Written out rather than looped through a helper: these run tens of millions
+ * of times while the property's textures are generated, all on the main
+ * thread before the first frame, and a closure allocated per call is most of
+ * what that time was being spent on.
+ */
 export function noise3(x: number, y: number, z: number): number {
   const xi = Math.floor(x);
   const yi = Math.floor(y);
@@ -28,10 +35,20 @@ export function noise3(x: number, y: number, z: number): number {
   const u = fade(x - xi);
   const v = fade(y - yi);
   const w = fade(z - zi);
-  const c = (dx: number, dy: number, dz: number) => hash3(xi + dx, yi + dy, zi + dz);
+  const x1 = xi + 1;
+  const y1 = yi + 1;
+  const z1 = zi + 1;
   return mix(
-    mix(mix(c(0, 0, 0), c(1, 0, 0), u), mix(c(0, 1, 0), c(1, 1, 0), u), v),
-    mix(mix(c(0, 0, 1), c(1, 0, 1), u), mix(c(0, 1, 1), c(1, 1, 1), u), v),
+    mix(
+      mix(hash3(xi, yi, zi), hash3(x1, yi, zi), u),
+      mix(hash3(xi, y1, zi), hash3(x1, y1, zi), u),
+      v,
+    ),
+    mix(
+      mix(hash3(xi, yi, z1), hash3(x1, yi, z1), u),
+      mix(hash3(xi, y1, z1), hash3(x1, y1, z1), u),
+      v,
+    ),
     w,
   );
 }
@@ -59,9 +76,21 @@ export function tileNoise2(x: number, y: number, periodX: number, periodY: numbe
   const yi = Math.floor(y);
   const u = fade(x - xi);
   const v = fade(y - yi);
-  const wrap = (n: number, p: number) => ((n % p) + p) % p;
-  const c = (dx: number, dy: number) => hash3(wrap(xi + dx, periodX), wrap(yi + dy, periodY), seed);
-  return mix(mix(c(0, 0), c(1, 0), u), mix(c(0, 1), c(1, 1), u), v);
+  // The wrap is inlined for the same reason noise3 is: this is the innermost
+  // loop of every procedural map on the property.
+  let x0 = xi % periodX;
+  if (x0 < 0) x0 += periodX;
+  let x1 = (xi + 1) % periodX;
+  if (x1 < 0) x1 += periodX;
+  let y0 = yi % periodY;
+  if (y0 < 0) y0 += periodY;
+  let y1 = (yi + 1) % periodY;
+  if (y1 < 0) y1 += periodY;
+  return mix(
+    mix(hash3(x0, y0, seed), hash3(x1, y0, seed), u),
+    mix(hash3(x0, y1, seed), hash3(x1, y1, seed), u),
+    v,
+  );
 }
 
 export function tileFbm2(x: number, y: number, periodX: number, periodY: number, octaves = 4, seed = 0): number {

@@ -146,10 +146,12 @@ Deliberately absent, because nobody has verified them: years in business, crew
 size, job counts, awards, licence and insurance claims, warranties,
 certifications, and roofing. Roofing is not advertised anywhere.
 
-The projects page shows views of this interactive model, labelled as
-demonstrations. There are no invented customer projects and no fabricated
-testimonial quotes — the reviews section links to the real Google and Facebook
-pages instead.
+The projects page and the home gallery show stills of this interactive model,
+captured from the running site by `npm run capture:stills` and labelled as
+demonstrations on every tile. They are renders of the archetype house, not
+photographs of anybody's job. There are no invented customer projects and no
+fabricated testimonial quotes — the reviews section links to the real Google
+and Facebook pages instead.
 
 ## Deployment
 
@@ -175,18 +177,21 @@ it, so a refresh or a shared link to `/estimate` lands on the right page.
   and twenty metres out and well inside the fog, and exists to stop the lawn
   meeting the sky along a ruled line. Looked at directly it is still a cluster
   of lobes, not a tree.
+- The window reflection is analytic — a procedural sky, not the scene. It
+  knows where the sun and the horizon are, and it does not know that there is
+  a tree to the left of the house.
 - The wall assembly is one bay of a 2x6 wall as built here. It is a correct
   drawing of an ordinary wall, not a specification of any particular job.
 - The house is an archetype, not any real customer's property.
 
 ## Where the next visual pass should go
 
-1. The projects gallery still shows placeholder tiles. The renderer can produce
-   real stills of this property at any composition; those slots should hold
-   them, labelled as demonstrations exactly as they are now.
-2. The rear elevation — it is correct, but it has had less attention than the
+1. The rear elevation. It is correct, but it has had less attention than the
    front and right, which is where every composition currently looks.
-3. Garage door relief: the panels are modelled but read flat at overview
-   distance.
-4. Variation between the four foreground trees, which currently share one
+2. The gutters still reads as a gable rather than as a gutter run. The camera
+   is right for the live view; the captured tile wants its own composition.
+3. Variation between the four foreground trees, which currently share one
    canopy recipe.
+4. Ground-floor glazing. It reflects the ground rather than the sky, which is
+   what glass does when you look down at it, but it is the darkest thing on
+   the elevation and a lower hero camera would let it catch more sky.

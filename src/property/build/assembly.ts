@@ -30,8 +30,10 @@ export type { LayerKey };
 export interface AssemblyLayer extends LayerInfo {
   /** Geometry keyed by the material it is drawn with. */
   parts: Map<string, THREE.BufferGeometry>;
-  /** Where the label points, in local space, once the layer has travelled. */
+  /** Where the flag sits, in local space, once the layer has travelled. */
   anchor: [number, number, number];
+  /** The point on the layer the flag's leader line runs down to. */
+  stem: [number, number, number];
 }
 
 function studWall(): Map<string, THREE.BufferGeometry> {
@@ -127,26 +129,44 @@ export function buildAssembly(): { layers: AssemblyLayer[]; triangles: number } 
     return merge(trim);
   };
 
-  const geometry: Record<LayerKey, { parts: Map<string, THREE.BufferGeometry>; anchor: [number, number, number] }> = {
-    // Labels ride on the top edge of their own layer. Every other anchor the
-    // stack offers is hidden behind the layer in front of it, which is how a
-    // flag ends up pointing at something it does not belong to.
-    framing: { parts: studWall(), anchor: [BAY * 0.44, HEIGHT + 0.07, STUD_D * 0.5] },
-    insulation: { parts: insulation(), anchor: [BAY * 0.44, HEIGHT + 0.07, STUD_D * 0.5] },
+  /**
+   * Labels ride on the top edge of their own layer — every other anchor the
+   * stack offers is hidden behind the layer in front of it, which is how a
+   * flag ends up pointing at something it does not belong to.
+   *
+   * They also climb. The layers separate along one axis, so from any camera
+   * the five anchors project onto a short line: five flags reading "WEATHER
+   * BARRIER" and "SIDING AND TRIM" cannot fit across sixty pixels, and they
+   * pile into an unreadable heap. Stepping each one 300 mm higher than the
+   * layer in front of it turns that heap into a staircase, with the cladding
+   * — the layer this whole section is about — at the top. The step is small:
+   * four of them have to clear the wall and still sit under the header.
+   */
+  const RISE = 0.2;
+  const EDGE = HEIGHT + 0.07;
+  type Flag = { anchor: [number, number, number]; stem: [number, number, number] };
+  const flag = (index: number, z: number): Flag => ({
+    anchor: [BAY * 0.44, EDGE + (index - 1) * RISE, z],
+    stem: [BAY * 0.44, EDGE, z],
+  });
+
+  const geometry: Record<LayerKey, { parts: Map<string, THREE.BufferGeometry> } & Flag> = {
+    framing: { parts: studWall(), ...flag(WALL_LAYERS[0].index, STUD_D * 0.5) },
+    insulation: { parts: insulation(), ...flag(WALL_LAYERS[1].index, STUD_D * 0.5) },
     sheathing: {
       parts: new Map([['osb', pierced(sheathingZ, 0.012)]]),
-      anchor: [BAY * 0.44, HEIGHT + 0.07, sheathingZ],
+      ...flag(WALL_LAYERS[2].index, sheathingZ),
     },
     barrier: {
       parts: new Map([['wrap', pierced(barrierZ, 0.0015)]]),
-      anchor: [BAY * 0.44, HEIGHT + 0.07, barrierZ],
+      ...flag(WALL_LAYERS[3].index, barrierZ),
     },
     cladding: {
       parts: new Map([
         ['siding', pierced(claddingZ, 0.019)],
         ['trim', trimParts()],
       ]),
-      anchor: [BAY * 0.44, HEIGHT + 0.07, claddingZ],
+      ...flag(WALL_LAYERS[4].index, claddingZ),
     },
   };
 

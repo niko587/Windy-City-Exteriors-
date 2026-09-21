@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import { company, navLinks } from '../content';
+import { useExperience } from '../property/store';
 import { Brand } from './Brand';
 
 /**
@@ -10,6 +11,13 @@ import { Brand } from './Brand';
 export function Header(): React.JSX.Element {
   const [solid, setSolid] = useState(false);
   const [open, setOpen] = useState(false);
+  /**
+   * The wall stage drops the scene to near black under a transparent header,
+   * which leaves navy links on black and the supplied mark all but invisible.
+   * Going solid is the one treatment that fixes both without touching the
+   * artwork: every element keeps the background it was drawn for.
+   */
+  const onStage = useExperience((s) => s.mode === 'wall');
   const location = useLocation();
   const burger = useRef<HTMLButtonElement>(null);
 
@@ -40,7 +48,7 @@ export function Header(): React.JSX.Element {
 
   return (
     <>
-      <header className={`header${solid || open ? ' header--solid' : ''}`}>
+      <header className={`header${solid || open || onStage ? ' header--solid' : ''}`}>
         <div className="header__inner">
           <Brand size={36} />
 

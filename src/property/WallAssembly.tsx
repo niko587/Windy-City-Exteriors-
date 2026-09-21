@@ -169,13 +169,19 @@ function Stage({ gl, colour, profile, reduced }: StageProps): React.JSX.Element 
       node.position.z = z;
       setLayerEmphasis(layer.key, emphasis.current[i] * p + (1 - p));
 
-      // Project the label anchor for the DOM overlay.
+      // Project the flag and the point it points at, for the DOM overlay. The
+      // flags climb in world space so they do not pile up, so each one needs
+      // its own leader length rather than a fixed offset in CSS.
       const proj = wallProjected[i];
       _v.set(layer.anchor[0] + ORIGIN[0], layer.anchor[1] + ORIGIN[1], layer.anchor[2] + ORIGIN[2] + z);
       _v.project(camera);
       const onScreen = _v.z < 1 && _v.x > -1.06 && _v.x < 1.06 && _v.y > -1.06 && _v.y < 1.06;
       proj.x = (_v.x * 0.5 + 0.5) * size.width;
       proj.y = (-_v.y * 0.5 + 0.5) * size.height;
+
+      _v.set(layer.stem[0] + ORIGIN[0], layer.stem[1] + ORIGIN[1], layer.stem[2] + ORIGIN[2] + z);
+      _v.project(camera);
+      proj.stem = Math.max(0, (-_v.y * 0.5 + 0.5) * size.height - proj.y);
       proj.visible = onScreen ? p * spread : 0;
     }
   });

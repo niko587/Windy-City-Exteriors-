@@ -215,12 +215,25 @@ export function buildProperty(): PropertyBuild {
     boxFrom(bay.xL - 0.11, main.y0 - 0.045, main.zF, bayW + 0.22, 0.045, bayD + 0.11),
   );
 
+  /* A solid core so the shell never reads as hollow from a high angle.
+     It stands 120 mm inside the cladding, and that number is load-bearing:
+     glazing sits 82 mm back from the wall face, so a core any shallower than
+     about 90 mm stands in front of every pane. It did, at 50 mm — what looked
+     like flat opaque glass was this concrete seen through the opening, form
+     seam and all. Keep the inset deeper than GLASS_Z in `parts.ts`. */
+  const CORE = 0.12;
   P.add(
     'foundation',
-    // A solid core so the shell never reads as hollow from a high angle.
-    boxFrom(main.xL + 0.05, main.y0, main.zB + 0.05, mainW - 0.1, main.eave - main.y0, mainD - 0.1),
-    boxFrom(bay.xL + 0.05, main.y0, main.zF - 0.3, bayW - 0.1, main.eave - main.y0, bayD + 0.25),
-    boxFrom(garage.xL + 0.05, garage.y0, garage.zB + 0.05, garage.xR - garage.xL - 0.1, garage.eave - garage.y0, garage.zF - garage.zB - 0.1),
+    boxFrom(main.xL + CORE, main.y0, main.zB + CORE, mainW - CORE * 2, main.eave - main.y0, mainD - CORE * 2),
+    boxFrom(bay.xL + CORE, main.y0, main.zF - 0.3, bayW - CORE * 2, main.eave - main.y0, bayD + 0.3 - CORE),
+    boxFrom(
+      garage.xL + CORE,
+      garage.y0,
+      garage.zB + CORE,
+      garage.xR - garage.xL - CORE * 2,
+      garage.eave - garage.y0,
+      garage.zF - garage.zB - CORE * 2,
+    ),
   );
 
   /* -- main block elevations -------------------------------------------- */

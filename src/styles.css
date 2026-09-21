@@ -348,6 +348,30 @@ textarea {
   border-bottom: 1px solid transparent;
 }
 
+/* Transparent, the bar still has to be legible: over the property it can end
+   up sitting on a dark roof, and navy links on charcoal shingle are not a
+   choice anyone made. A short wash off the top edge keeps the masthead on its
+   own ground without closing the bar in. It is drawn behind the contents and
+   fades out before the headline starts. */
+.header::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 -34px 0;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    rgba(244, 239, 230, 0.88) 0%,
+    rgba(244, 239, 230, 0.7) 46%,
+    rgba(244, 239, 230, 0) 100%
+  );
+  transition: opacity var(--t-mid) var(--ease-out);
+}
+
+.header--solid::before {
+  opacity: 0;
+}
+
 .header--solid {
   background: rgba(244, 239, 230, 0.86);
   backdrop-filter: blur(14px) saturate(1.1);

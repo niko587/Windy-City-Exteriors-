@@ -1198,15 +1198,19 @@
     min-height: 560px;
   }
 
+  /* The scrim has to clear the whole of the hero copy, not just the headline:
+     at 56% the last line of the lede landed where the ramp had already given
+     up, and grey type on a grey roof is unreadable. */
   .stage__scrim {
     inset: 0 0 auto 0;
     width: 100%;
-    height: 56%;
+    height: 74%;
     background: linear-gradient(
       to bottom,
-      rgba(244, 239, 230, 0.94) 0%,
-      rgba(244, 239, 230, 0.86) 34%,
-      rgba(244, 239, 230, 0.48) 64%,
+      rgba(244, 239, 230, 0.95) 0%,
+      rgba(244, 239, 230, 0.9) 34%,
+      rgba(244, 239, 230, 0.78) 56%,
+      rgba(244, 239, 230, 0.34) 80%,
       rgba(244, 239, 230, 0) 100%
     );
   }
@@ -1267,6 +1271,9 @@
     padding-top: 10px;
     margin-inline: calc(var(--gutter) * -1);
     padding-inline: var(--gutter);
+    /* The row runs off the edge of a phone; fading it says so. */
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
   }
 
   .rail__items::-webkit-scrollbar {
@@ -1343,6 +1350,7 @@
   }
 
   .chiprow__items {
+    -webkit-mask-image: linear-gradient(to right, #000 0, #000 90%, transparent 100%);
     mask-image: linear-gradient(to right, #000 0, #000 90%, transparent 100%);
   }
 
@@ -1352,8 +1360,8 @@
   }
 
   .chip__face {
-    width: 36px;
-    height: 23px;
+    width: 34px;
+    height: 21px;
   }
 
   .chip__text {
@@ -1370,17 +1378,22 @@
     white-space: nowrap;
     font-size: 10.5px;
     padding-inline: 12px;
+    /* A grid item sized to its own content cannot shrink, and these two
+       labels together are wider than a phone. */
+    min-width: 0;
   }
 
   .studio__foot {
     display: grid;
-    gap: 11px;
-    padding-top: 11px;
+    gap: 9px;
+    padding-top: 9px;
   }
 
+  /* Stacked, not side by side: "Continue to estimate" beside "Look inside
+     the wall" overflows a 375 px screen however the type is tightened. */
   .studio__actions {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr);
     gap: 7px;
   }
 
@@ -1501,6 +1514,22 @@
     background var(--t-fast) var(--ease-out);
 }
 
+/* The leader line down to the layer the flag belongs to. The flags climb so
+   they can be read; the leader is what keeps them attached to the wall. */
+.walllabel::after {
+  content: '';
+  position: absolute;
+  left: 23px;
+  top: 100%;
+  width: 1px;
+  height: var(--stem, 0px);
+  background: linear-gradient(
+    to bottom,
+    rgba(233, 240, 252, 0.34),
+    rgba(233, 240, 252, 0.06)
+  );
+}
+
 .walllabel__no {
   width: 19px;
   height: 19px;
@@ -1530,9 +1559,17 @@
   color: #fff;
 }
 
+.walllabel[data-active='true']::after {
+  background: linear-gradient(to bottom, rgba(200, 16, 46, 0.66), rgba(200, 16, 46, 0.1));
+}
+
 .walllabel[data-dim='true'] {
   border-color: rgba(233, 240, 252, 0.07);
   color: rgba(233, 240, 252, 0.4);
+}
+
+.walllabel[data-dim='true']::after {
+  opacity: 0.4;
 }
 
 /* --- the inspection panel -------------------------------------------------- */
@@ -1758,10 +1795,25 @@
     margin-top: 12px;
     padding-bottom: 4px;
     scrollbar-width: none;
+    /* The row runs past the edge on a phone. Fading it says so; a word cut
+       clean in half just looks like a layout that broke. */
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 26px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 26px), transparent);
   }
 
   .walllist::-webkit-scrollbar {
     display: none;
+  }
+
+  /* Five flags will not fit across a phone, and a heap of them is worse than
+     none: the panel's own numbered list already maps them. Only the layer
+     being inspected keeps its flag. */
+  .walllabel {
+    display: none;
+  }
+
+  .walllabel[data-active='true'] {
+    display: flex;
   }
 
   .walllist li {

@@ -78,11 +78,18 @@ export const wallLayerOrder: LayerKey[] = WALL_LAYERS.map((l) => l.key);
 export interface WallProjected {
   x: number;
   y: number;
+  /** Pixel length of the leader line from the flag down to its layer. */
+  stem: number;
   /** 0 when the layer is behind the camera or off the frame. */
   visible: number;
 }
 
-export const wallProjected: WallProjected[] = WALL_LAYERS.map(() => ({ x: 0, y: 0, visible: 0 }));
+export const wallProjected: WallProjected[] = WALL_LAYERS.map(() => ({
+  x: 0,
+  y: 0,
+  stem: 0,
+  visible: 0,
+}));
 
 /**
  * How present the assembly stage is, 0–1, written by the renderer each frame.

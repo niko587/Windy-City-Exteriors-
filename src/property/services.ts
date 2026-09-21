@@ -72,7 +72,7 @@ const compositions = {
   /** The assembly stage: a three-quarter view down the layers, far enough back
    *  that the whole separated stack sits inside the frame, low enough to read
    *  the thickness of each one. */
-  wall: { target: [0, 1.5, 0.35], azimuth: 0.95, polar: 1.412, distance: 9.4, fov: 30, travel: 1.2 },
+  wall: { target: [0, 1.62, 0.35], azimuth: 0.95, polar: 1.412, distance: 9.4, fov: 30, travel: 1.2 },
 } satisfies Record<string, Composition>;
 
 export type CompositionKey = keyof typeof compositions;

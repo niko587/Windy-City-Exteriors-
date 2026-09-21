@@ -54,6 +54,9 @@ export function WallLabels(): React.JSX.Element {
         const p = wallProjected[i];
         if (!node || !p) continue;
         node.style.transform = `translate3d(${p.x}px, ${p.y}px, 0)`;
+        // The leader is drawn by a pseudo-element hanging off the flag; its
+        // length is the projected distance down to the layer's own top edge.
+        node.style.setProperty('--stem', `${Math.round(p.stem)}px`);
         node.style.opacity = String(p.visible);
         node.style.visibility = p.visible < 0.02 ? 'hidden' : 'visible';
       }
